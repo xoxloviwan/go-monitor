@@ -91,6 +91,7 @@ func TestStatusHandler(t *testing.T) {
 
 			res := w.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)
+			defer res.Body.Close()
 		})
 	}
 }
