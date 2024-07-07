@@ -61,14 +61,31 @@ func TestStatusHandler(t *testing.T) {
 				contentType: "plain/text",
 			},
 		},
+		{
+			name:   "service post 404",
+			url:    "/update/other",
+			method: http.MethodPost,
+			want: want{
+				code:        404,
+				response:    "",
+				contentType: "plain/text",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.url, nil)
 			w := httptest.NewRecorder()
-			req.SetPathValue("metricType", strings.Split(tt.url, "/")[2])
-			req.SetPathValue("metricName", strings.Split(tt.url, "/")[3])
-			req.SetPathValue("metricValue", strings.Split(tt.url, "/")[4])
+			urlSpl := strings.Split(tt.url, "/")
+			if len(urlSpl) > 2 {
+				req.SetPathValue("metricType", urlSpl[2])
+			}
+			if len(urlSpl) > 3 {
+				req.SetPathValue("metricName", urlSpl[3])
+			}
+			if len(urlSpl) > 4 {
+				req.SetPathValue("metricValue", urlSpl[4])
+			}
 
 			update(w, req)
 
