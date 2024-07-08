@@ -38,3 +38,26 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 	}
 	return err
 }
+
+func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
+	switch metricType {
+	case "counter":
+		res, ok := Storage.counter[metricName]
+		if !ok {
+			return "", false
+		} else {
+			m := strconv.FormatInt(res, 10)
+			return m, true
+		}
+	case "gauge":
+		res, ok := Storage.gauge[metricName]
+		if !ok {
+			return "", false
+		} else {
+			m := strconv.FormatFloat(res, 'f', -1, 64)
+			return m, true
+		}
+	default:
+		return "", false
+	}
+}
