@@ -12,6 +12,7 @@ func main() {
 	ginHandler := gin.WrapH(handler)
 	r := gin.New()
 	r.Use(ginHandler)
+	r.Use(gin.Logger())
 	err := r.Run(":8080")
 	if err != nil {
 		panic(err)

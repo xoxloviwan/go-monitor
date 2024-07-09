@@ -51,6 +51,7 @@ func (hdl *Handler) update(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
@@ -67,6 +68,7 @@ func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
+		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(v))
 	}
 
