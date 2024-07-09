@@ -1,4 +1,4 @@
-package api
+package router
 
 import (
 	"net/http"
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
 type want struct {
@@ -23,15 +22,13 @@ type testcase []struct {
 	want   want
 }
 
-var hdl = &Handler{
-	store: store.NewMemStorage(),
-}
+var router = SetupRouter()
 
 func Test_update(t *testing.T) {
 
 	tests := testcase{
 		{
-			name:   "service post 200 gauge",
+			name:   "service_post_200_gauge",
 			url:    "/update/gauge/someMetric/23.4",
 			method: http.MethodPost,
 			want: want{
@@ -41,7 +38,7 @@ func Test_update(t *testing.T) {
 			},
 		},
 		{
-			name:   "service post 200 counter",
+			name:   "service_post_200_counter",
 			url:    "/update/counter/someMetric/23",
 			method: http.MethodPost,
 			want: want{
@@ -51,7 +48,7 @@ func Test_update(t *testing.T) {
 			},
 		},
 		{
-			name:   "service get 400",
+			name:   "service_get_400",
 			url:    "/update/counter/someMetric/23",
 			method: http.MethodGet,
 			want: want{
@@ -61,7 +58,7 @@ func Test_update(t *testing.T) {
 			},
 		},
 		{
-			name:   "service post 400",
+			name:   "service_post_400",
 			url:    "/update/other/some/23",
 			method: http.MethodPost,
 			want: want{
@@ -71,7 +68,7 @@ func Test_update(t *testing.T) {
 			},
 		},
 		{
-			name:   "service post 404",
+			name:   "service_post_404",
 			url:    "/update/other",
 			method: http.MethodPost,
 			want: want{
@@ -96,7 +93,7 @@ func Test_update(t *testing.T) {
 				req.SetPathValue("metricValue", urlSpl[4])
 			}
 
-			hdl.update(w, req)
+			router.ServeHTTP(w, req)
 
 			res := w.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)
@@ -108,7 +105,7 @@ func Test_update(t *testing.T) {
 func Test_value(t *testing.T) {
 	tests := testcase{
 		{
-			name:   "service get 200 gauge",
+			name:   "service_get_200_gauge",
 			url:    "/value/gauge/someMetric",
 			method: http.MethodGet,
 			want: want{
@@ -118,7 +115,7 @@ func Test_value(t *testing.T) {
 			},
 		},
 		{
-			name:   "service post 400 gauge",
+			name:   "service_post_400_gauge",
 			url:    "/value/gauge/someMetric",
 			method: http.MethodPost,
 			want: want{
@@ -128,7 +125,7 @@ func Test_value(t *testing.T) {
 			},
 		},
 		{
-			name:   "service get 200 counter",
+			name:   "service_get_200_counter",
 			url:    "/value/counter/someMetric",
 			method: http.MethodGet,
 			want: want{
@@ -138,7 +135,7 @@ func Test_value(t *testing.T) {
 			},
 		},
 		{
-			name:   "service get 404",
+			name:   "service_get_404",
 			url:    "/value/other/some",
 			method: http.MethodGet,
 			want: want{
@@ -160,7 +157,7 @@ func Test_value(t *testing.T) {
 				req.SetPathValue("metricName", urlSpl[3])
 			}
 
-			hdl.value(w, req)
+			router.ServeHTTP(w, req)
 
 			res := w.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)
