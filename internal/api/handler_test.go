@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStatusHandler(t *testing.T) {
+func Test_update(t *testing.T) {
 	type want struct {
 		code        int
 		response    string
