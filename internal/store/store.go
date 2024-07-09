@@ -14,9 +14,11 @@ type MemStorage struct {
 	counter
 }
 
-var Storage MemStorage = MemStorage{
-	gauge:   make(map[string]float64),
-	counter: make(map[string]int64),
+func NewMemStorage() *MemStorage {
+	return &MemStorage{
+		gauge:   make(map[string]float64),
+		counter: make(map[string]int64),
+	}
 }
 
 func (s *MemStorage) Add(metricType string, metricName string, metricValue string) (err error) {
@@ -26,13 +28,13 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 		if err != nil {
 			return err
 		}
-		Storage.counter[metricName] = Storage.counter[metricName] + res64
+		s.counter[metricName] = s.counter[metricName] + res64
 	case "gauge":
 		res64, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return err
 		}
-		Storage.gauge[metricName] = res64
+		s.gauge[metricName] = res64
 	default:
 		return errors.New("unknown metric type")
 	}
@@ -42,7 +44,7 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	switch metricType {
 	case "counter":
-		res, ok := Storage.counter[metricName]
+		res, ok := s.counter[metricName]
 		if !ok {
 			return "", false
 		} else {
@@ -50,7 +52,7 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 			return m, true
 		}
 	case "gauge":
-		res, ok := Storage.gauge[metricName]
+		res, ok := s.gauge[metricName]
 		if !ok {
 			return "", false
 		} else {

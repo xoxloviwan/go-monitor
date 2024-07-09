@@ -3,10 +3,12 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/xoxloviwan/go-monitor/internal/api"
+	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
 func main() {
-	handler := api.NewHandler()
+	store := store.NewMemStorage()
+	handler := api.NewHandler(store)
 	ginHandler := gin.WrapH(handler)
 	r := gin.New()
 	r.Use(ginHandler)

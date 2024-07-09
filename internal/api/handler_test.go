@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
 type want struct {
@@ -20,6 +21,10 @@ type testcase []struct {
 	url    string
 	method string
 	want   want
+}
+
+var hdl = &Handler{
+	store: store.NewMemStorage(),
 }
 
 func Test_update(t *testing.T) {
@@ -91,7 +96,7 @@ func Test_update(t *testing.T) {
 				req.SetPathValue("metricValue", urlSpl[4])
 			}
 
-			update(w, req)
+			hdl.update(w, req)
 
 			res := w.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)
@@ -155,7 +160,7 @@ func Test_value(t *testing.T) {
 				req.SetPathValue("metricName", urlSpl[3])
 			}
 
-			value(w, req)
+			hdl.value(w, req)
 
 			res := w.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)

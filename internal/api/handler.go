@@ -3,17 +3,25 @@ package api
 import (
 	"net/http"
 
-	"github.com/xoxloviwan/go-monitor/internal/store"
+	store "github.com/xoxloviwan/go-monitor/internal/store"
 )
 
-func NewHandler() *http.ServeMux {
+type Handler struct {
+	store *store.MemStorage
+}
+
+func NewHandler(storage *store.MemStorage) *http.ServeMux {
+
+	handler := &Handler{
+		store: storage,
+	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", update)
-	mux.HandleFunc("/value/{metricType}/{metricName}", value)
+	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handler.update)
+	mux.HandleFunc("/value/{metricType}/{metricName}", handler.value)
 	return mux
 }
 
-func update(w http.ResponseWriter, req *http.Request) {
+func (hdl *Handler) update(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -28,13 +36,13 @@ func update(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := store.Storage.Add(metricType, metricName, metricValue)
+	err := hdl.store.Add(metricType, metricName, metricValue)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
-func value(w http.ResponseWriter, req *http.Request) {
+func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -43,12 +51,11 @@ func value(w http.ResponseWriter, req *http.Request) {
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
 
-	v, ok := store.Storage.Get(metricType, metricName)
+	v, ok := hdl.store.Get(metricType, metricName)
 
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Write([]byte(v))
 	}
-
 }
