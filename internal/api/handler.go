@@ -50,8 +50,9 @@ func (hdl *Handler) update(w http.ResponseWriter, req *http.Request) {
 	err := hdl.store.Add(metricType, metricName, metricValue)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
