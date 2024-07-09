@@ -2,18 +2,29 @@ package api
 
 import (
 	"net/http"
-
-	store "github.com/xoxloviwan/go-monitor/internal/store"
 )
 
 type Handler struct {
-	store *store.MemStorage
+	store ReaderWriter
 }
 
-func NewHandler(storage *store.MemStorage) *http.ServeMux {
+type Reader interface {
+	Get(metricType string, metricName string) (string, bool)
+}
+
+type Writer interface {
+	Add(metricType string, metricName string, metricValue string) error
+}
+
+type ReaderWriter interface {
+	Reader
+	Writer
+}
+
+func NewHandler(store ReaderWriter) *http.ServeMux {
 
 	handler := &Handler{
-		store: storage,
+		store: store,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handler.update)
@@ -58,4 +69,5 @@ func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.Write([]byte(v))
 	}
+
 }
