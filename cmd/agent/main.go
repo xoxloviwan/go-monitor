@@ -1,11 +1,12 @@
 package main
 
 import (
-	//"fmt"
+	"flag"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -43,10 +44,11 @@ type metrics struct {
 	PollCount     int64
 }
 
-const pollInterval = 2
-const reportInterval = 10
-
-var PollCount int64 = 0
+var (
+	pollInterval         = flag.Int("p", 2, "poll interval in seconds")
+	reportInterval       = flag.Int("r", 10, "report interval in seconds")
+	PollCount      int64 = 0
+)
 
 func getMetrics(MemStats *runtime.MemStats, PollCount int64) metrics {
 	return metrics{
@@ -97,10 +99,10 @@ func (m *metrics) getUrls() []string {
 	return urls
 }
 
-func send(urls *[]string) {
+func send(adr *string, urls *[]string) {
 	cl := &http.Client{}
 
-	const server = "http://localhost:8080"
+	server := "http://" + *adr
 
 	for _, url := range *urls {
 		//fmt.Println(time.Now().Local().UTC(), "send", url)
@@ -118,16 +120,24 @@ func send(urls *[]string) {
 }
 
 func main() {
+	adr := flag.String("a", "localhost:8080", "server adress")
+	flag.Parse()
+	if len(flag.Args()) > 0 {
+		fmt.Println("Too many arguments")
+		os.Exit(1)
+	}
+	pollRate := int64(*pollInterval)
+	reportRate := int64(*reportInterval)
 	var MemStats runtime.MemStats
 	for {
 		runtime.ReadMemStats(&MemStats)
 		PollCount = PollCount + 1
 		metrics := getMetrics(&MemStats, PollCount)
 
-		if (PollCount*pollInterval)%reportInterval == 0 {
+		if (PollCount*pollRate)%reportRate == 0 {
 			urls := metrics.getUrls()
-			send(&urls)
+			send(adr, &urls)
 		}
-		time.Sleep(pollInterval * time.Second)
+		time.Sleep(time.Duration(pollRate) * time.Second)
 	}
 }
