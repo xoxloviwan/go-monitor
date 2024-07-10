@@ -141,13 +141,12 @@ func main() {
 		os.Exit(1)
 	}
 	flag.Parse()
-	if cfg.Address != *address && cfg.Address != DA {
-		adr = &cfg.Address
-	}
-	fmt.Println("cfg adr", *adr)
 	if len(flag.Args()) > 0 {
 		fmt.Println("Too many arguments")
 		os.Exit(1)
+	}
+	if cfg.Address != *address && cfg.Address != DA {
+		adr = &cfg.Address
 	}
 	pollRate := int64(*pollInterval)
 	if cfg.PollInterval != pollRate && cfg.PollInterval != DPI {
