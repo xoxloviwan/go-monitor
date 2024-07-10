@@ -3,6 +3,7 @@ module github.com/xoxloviwan/go-monitor
 go 1.22.1
 
 require (
+	github.com/caarlos0/env/v11 v11.1.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/stretchr/testify v1.9.0
 )

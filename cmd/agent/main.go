@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type metrics struct {
@@ -44,9 +46,20 @@ type metrics struct {
 	PollCount     int64
 }
 
+const DA = "localhost:8080"
+const DPI = 2
+const DRI = 10
+
+type Config struct {
+	Address        string `envDefault:"localhost:8080"`
+	ReportInterval int64  `envDefault:"10"`
+	PollInterval   int64  `envDefault:"2"`
+}
+
 var (
-	pollInterval         = flag.Int("p", 2, "poll interval in seconds")
-	reportInterval       = flag.Int("r", 10, "report interval in seconds")
+	address              = flag.String("a", DA, "server adress")
+	pollInterval         = flag.Int("p", DPI, "poll interval in seconds")
+	reportInterval       = flag.Int("r", DRI, "report interval in seconds")
 	PollCount      int64 = 0
 )
 
@@ -120,14 +133,30 @@ func send(adr *string, urls *[]string) {
 }
 
 func main() {
-	adr := flag.String("a", "localhost:8080", "server adress")
+	adr := address
+	var cfg Config
+	opts := env.Options{UseFieldNameByDefault: true}
+	if err := env.ParseWithOptions(&cfg, opts); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	flag.Parse()
+	if cfg.Address != *address && cfg.Address != DA {
+		adr = &cfg.Address
+	}
+	fmt.Println("cfg adr", *adr)
 	if len(flag.Args()) > 0 {
 		fmt.Println("Too many arguments")
 		os.Exit(1)
 	}
 	pollRate := int64(*pollInterval)
+	if cfg.PollInterval != pollRate && cfg.PollInterval != DPI {
+		pollRate = cfg.PollInterval
+	}
 	reportRate := int64(*reportInterval)
+	if cfg.ReportInterval != reportRate && cfg.ReportInterval != DRI {
+		reportRate = cfg.ReportInterval
+	}
 	var MemStats runtime.MemStats
 	for {
 		runtime.ReadMemStats(&MemStats)
