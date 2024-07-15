@@ -42,7 +42,7 @@ func Test_update(t *testing.T) {
 			url:    "/update/counter/someMetric/23",
 			method: http.MethodPost,
 			want: want{
-				code:        200,
+				code:        http.StatusOK,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -52,7 +52,7 @@ func Test_update(t *testing.T) {
 			url:    "/update/counter/someMetric/23",
 			method: http.MethodGet,
 			want: want{
-				code:        400,
+				code:        http.StatusBadRequest,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -62,7 +62,7 @@ func Test_update(t *testing.T) {
 			url:    "/update/other/some/23",
 			method: http.MethodPost,
 			want: want{
-				code:        400,
+				code:        http.StatusBadRequest,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -72,7 +72,7 @@ func Test_update(t *testing.T) {
 			url:    "/update/other",
 			method: http.MethodPost,
 			want: want{
-				code:        404,
+				code:        http.StatusNotFound,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -109,7 +109,7 @@ func Test_value(t *testing.T) {
 			url:    "/value/gauge/someMetric",
 			method: http.MethodGet,
 			want: want{
-				code:        200,
+				code:        http.StatusOK,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -119,7 +119,7 @@ func Test_value(t *testing.T) {
 			url:    "/value/gauge/someMetric",
 			method: http.MethodPost,
 			want: want{
-				code:        400,
+				code:        http.StatusBadRequest,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -129,7 +129,7 @@ func Test_value(t *testing.T) {
 			url:    "/value/counter/someMetric",
 			method: http.MethodGet,
 			want: want{
-				code:        200,
+				code:        http.StatusOK,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -139,7 +139,7 @@ func Test_value(t *testing.T) {
 			url:    "/value/other/some",
 			method: http.MethodGet,
 			want: want{
-				code:        404,
+				code:        http.StatusNotFound,
 				response:    "",
 				contentType: "plain/text",
 			},
