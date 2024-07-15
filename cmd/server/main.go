@@ -17,7 +17,7 @@ type Config struct {
 }
 
 func main() {
-	adr := flag.String("a", DA, "server adress")
+	adr := flag.String("a", AddressDefault, "server adress")
 	var cfg Config
 	opts := env.Options{UseFieldNameByDefault: true}
 	if err := env.ParseWithOptions(&cfg, opts); err != nil {
@@ -25,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 	flag.Parse()
-	if cfg.Address != *adr && cfg.Address != DA {
+	if cfg.Address != *adr && cfg.Address != AddressDefault {
 		adr = &cfg.Address
 	}
 	if len(flag.Args()) > 0 {
