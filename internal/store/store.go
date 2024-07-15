@@ -5,6 +5,9 @@ import (
 	"strconv"
 )
 
+const counterName = "counter"
+const gaugeName = "gauge"
+
 type gauge map[string]float64
 
 type counter map[string]int64
@@ -23,14 +26,14 @@ func NewMemStorage() *MemStorage {
 
 func (s *MemStorage) Add(metricType string, metricName string, metricValue string) (err error) {
 	switch metricType {
-	case "counter":
+	case counterName:
 		res64, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			return err
 		}
 		s.counter[metricName] += res64
 
-	case "gauge":
+	case gaugeName:
 		res64, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return err
@@ -44,7 +47,7 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	switch metricType {
-	case "counter":
+	case counterName:
 		res, ok := s.counter[metricName]
 		if !ok {
 			return "", false
@@ -52,7 +55,7 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 			m := strconv.FormatInt(res, 10)
 			return m, true
 		}
-	case "gauge":
+	case gaugeName:
 		res, ok := s.gauge[metricName]
 		if !ok {
 			return "", false
