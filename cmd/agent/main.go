@@ -47,9 +47,9 @@ type metrics struct {
 }
 
 const (
-        AddressDefault = "localhost:8080"
-        PollIntervalDefault = 2
-        ReportIntervalDefault = 10
+	AddressDefault        = "localhost:8080"
+	PollIntervalDefault   = 2
+	ReportIntervalDefault = 10
 )
 
 type Config struct {
@@ -114,7 +114,7 @@ func (m *metrics) getUrls() []string {
 	return urls
 }
 
-func send(adr *string, urls *[]string) {
+func send(adr *string, urls *[]string) (err error) {
 	cl := &http.Client{}
 
 	server := "http://" + *adr
@@ -123,15 +123,15 @@ func send(adr *string, urls *[]string) {
 		//fmt.Println(time.Now().Local().UTC(), "send", url)
 		response, err := cl.Post(server+url, "text/plain", nil)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		_, err = io.Copy(io.Discard, response.Body)
 		defer response.Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 	}
-
+	return nil
 }
 
 func main() {
@@ -159,12 +159,15 @@ func main() {
 	var MemStats runtime.MemStats
 	for {
 		runtime.ReadMemStats(&MemStats)
-		PollCount +=  1
+		PollCount += 1
 		metrics := getMetrics(&MemStats, PollCount)
 
 		if (PollCount*pollRate)%reportRate == 0 {
 			urls := metrics.getUrls()
-			send(adr, &urls)
+			err := send(adr, &urls)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 		time.Sleep(time.Duration(pollRate) * time.Second)
 	}
