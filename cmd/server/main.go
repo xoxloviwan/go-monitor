@@ -10,7 +10,7 @@ import (
 	"github.com/xoxloviwan/go-monitor/internal/api"
 )
 
-const DA = "localhost:8080"
+const AddressDefault = "localhost:8080"
 
 type Config struct {
 	Address string `envDefault:"localhost:8080"`
