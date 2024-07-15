@@ -139,8 +139,7 @@ func main() {
 	var cfg Config
 	opts := env.Options{UseFieldNameByDefault: true}
 	if err := env.ParseWithOptions(&cfg, opts); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+                log.Fatalf("Error parsing env: %v", err)
 	}
 	flag.Parse()
 	if len(flag.Args()) > 0 {
