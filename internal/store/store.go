@@ -28,7 +28,8 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 		if err != nil {
 			return err
 		}
-		s.counter[metricName] = s.counter[metricName] + res64
+		s.counter[metricName] += res64
+
 	case "gauge":
 		res64, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
