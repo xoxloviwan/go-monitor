@@ -46,9 +46,11 @@ type metrics struct {
 	PollCount     int64
 }
 
-const DA = "localhost:8080"
-const DPI = 2
-const DRI = 10
+const (
+        AddressDefault = "localhost:8080"
+        PollIntervalDefault = 2
+        ReportIntervalDefault = 10
+)
 
 type Config struct {
 	Address        string `envDefault:"localhost:8080"`
