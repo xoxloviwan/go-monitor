@@ -59,9 +59,9 @@ type Config struct {
 }
 
 var (
-	address              = flag.String("a", DA, "server adress")
-	pollInterval         = flag.Int("p", DPI, "poll interval in seconds")
-	reportInterval       = flag.Int("r", DRI, "report interval in seconds")
+	address              = flag.String("a", AddressDefault, "server adress")
+	pollInterval         = flag.Int("p", PollIntervalDefault, "poll interval in seconds")
+	reportInterval       = flag.Int("r", ReportIntervalDefault, "report interval in seconds")
 	PollCount      int64 = 0
 )
 
@@ -147,15 +147,15 @@ func main() {
 		fmt.Println("Too many arguments")
 		os.Exit(1)
 	}
-	if cfg.Address != *address && cfg.Address != DA {
+	if cfg.Address != *address && cfg.Address != AddressDefault {
 		adr = &cfg.Address
 	}
 	pollRate := int64(*pollInterval)
-	if cfg.PollInterval != pollRate && cfg.PollInterval != DPI {
+	if cfg.PollInterval != pollRate && cfg.PollInterval != PollIntervalDefault {
 		pollRate = cfg.PollInterval
 	}
 	reportRate := int64(*reportInterval)
-	if cfg.ReportInterval != reportRate && cfg.ReportInterval != DRI {
+	if cfg.ReportInterval != reportRate && cfg.ReportInterval != ReportIntervalDefault {
 		reportRate = cfg.ReportInterval
 	}
 	var MemStats runtime.MemStats
