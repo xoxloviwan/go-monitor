@@ -159,7 +159,7 @@ func main() {
 	var MemStats runtime.MemStats
 	for {
 		runtime.ReadMemStats(&MemStats)
-		PollCount = PollCount + 1
+		PollCount +=  1
 		metrics := getMetrics(&MemStats, PollCount)
 
 		if (PollCount*pollRate)%reportRate == 0 {
