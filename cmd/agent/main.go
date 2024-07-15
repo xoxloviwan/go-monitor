@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -139,12 +139,11 @@ func main() {
 	var cfg Config
 	opts := env.Options{UseFieldNameByDefault: true}
 	if err := env.ParseWithOptions(&cfg, opts); err != nil {
-                log.Fatalf("Error parsing env: %v", err)
+		log.Fatalf("Error parsing env: %v", err)
 	}
 	flag.Parse()
 	if len(flag.Args()) > 0 {
-		fmt.Println("Too many arguments")
-		os.Exit(1)
+		log.Fatal("Too many arguments")
 	}
 	if cfg.Address != *address && cfg.Address != AddressDefault {
 		adr = &cfg.Address
