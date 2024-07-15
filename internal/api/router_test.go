@@ -32,7 +32,7 @@ func Test_update(t *testing.T) {
 			url:    "/update/gauge/someMetric/23.4",
 			method: http.MethodPost,
 			want: want{
-				code:        200,
+				code:        http.StatusOK,
 				response:    "",
 				contentType: "plain/text",
 			},
