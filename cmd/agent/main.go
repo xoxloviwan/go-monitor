@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	conf "github.com/xoxloviwan/go-monitor/internal/config"
+	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 )
 
