@@ -38,7 +38,7 @@ func main() {
 	for {
 		PollCount += 1
 		metrics := metrs.GetMetrics(PollCount)
-		if (PollCount*cfg.PollInterval)%cfg.ReportInterval == 0 {
+		if (PollCount*cfg.PollInterval)%cfg.ReportInterval == 0 { // например, PollInterval=1 запрос метрик раз в 1 секунду (ждем 1 секунду), ReportInterval=10 - каждую 10ую секунду отправляем метрики, значит отсекаем все которые не делятся на цело на 10
 			urls := metrics.GetUrls()
 			err := send(&cfg.Address, &urls)
 			if err != nil {
