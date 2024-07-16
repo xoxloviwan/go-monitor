@@ -8,19 +8,19 @@ import (
 const counterName = "counter"
 const gaugeName = "gauge"
 
-type gauge map[string]float64
+type Gauge map[string]float64
 
-type counter map[string]int64
+type Counter map[string]int64
 
 type MemStorage struct {
-	gauge
-	counter
+	Gauge
+	Counter
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		gauge:   make(map[string]float64),
-		counter: make(map[string]int64),
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
 	}
 }
 
@@ -31,14 +31,14 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 		if err != nil {
 			return err
 		}
-		s.counter[metricName] += res64
+		s.Counter[metricName] += res64
 
 	case gaugeName:
 		res64, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return err
 		}
-		s.gauge[metricName] = res64
+		s.Gauge[metricName] = res64
 	default:
 		return errors.New("unknown metric type")
 	}
@@ -48,7 +48,7 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	switch metricType {
 	case counterName:
-		res, ok := s.counter[metricName]
+		res, ok := s.Counter[metricName]
 		if !ok {
 			return "", false
 		} else {
@@ -56,7 +56,7 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 			return m, true
 		}
 	case gaugeName:
-		res, ok := s.gauge[metricName]
+		res, ok := s.Gauge[metricName]
 		if !ok {
 			return "", false
 		} else {
@@ -66,4 +66,17 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+func (s *MemStorage) GetUrls() []string {
+	var urls []string
+	for metricName, metricValue := range s.Gauge {
+		url := "/update/" + gaugeName + "/" + metricName + "/" + strconv.FormatFloat(metricValue, 'f', -1, 64)
+		urls = append(urls, url)
+	}
+	for metricName, metricValue := range s.Counter {
+		url := "/update/" + counterName + "/" + metricName + "/" + strconv.FormatInt(metricValue, 10)
+		urls = append(urls, url)
+	}
+	return urls
 }
