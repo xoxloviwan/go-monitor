@@ -5,8 +5,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type want struct {
@@ -96,8 +94,11 @@ func Test_update(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			res := w.Result()
-			assert.Equal(t, tt.want.code, res.StatusCode)
 			defer res.Body.Close()
+
+			if tt.want.code != res.StatusCode {
+				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
 		})
 	}
 }
@@ -161,7 +162,10 @@ func Test_value(t *testing.T) {
 
 			res := w.Result()
 			defer res.Body.Close()
-			assert.Equal(t, tt.want.code, res.StatusCode)
+
+			if tt.want.code != res.StatusCode {
+				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
 		})
 	}
 }
