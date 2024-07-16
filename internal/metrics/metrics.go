@@ -9,11 +9,11 @@ import (
 
 type Metrics = store.MemStorage
 
-type UrlMaker interface {
+type URLMaker interface {
 	GetUrls() []string
 }
 
-func GetMetrics(PollCount int64) UrlMaker {
+func GetMetrics(PollCount int64) URLMaker {
 	var MemStats runtime.MemStats
 	runtime.ReadMemStats(&MemStats)
 	return &Metrics{
