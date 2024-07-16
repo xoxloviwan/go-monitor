@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -21,56 +23,40 @@ type ReaderWriter interface {
 	Writer
 }
 
-func NewHandler(store ReaderWriter) *http.ServeMux {
-
-	handler := &Handler{
+func NewHandler(store ReaderWriter) *Handler {
+	return &Handler{
 		store: store,
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handler.update)
-	mux.HandleFunc("/value/{metricType}/{metricName}", handler.value)
-	return mux
 }
 
-func (hdl *Handler) update(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	metricType := req.PathValue("metricType")
-	metricName := req.PathValue("metricName")
-	metricValue := req.PathValue("metricValue")
+func (hdl *Handler) update(c *gin.Context) {
+	metricType := c.Param("metricType")
+	metricName := c.Param("metricName")
+	metricValue := c.Param("metricValue")
 
 	if metricName == "" {
-		w.WriteHeader(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
 	err := hdl.store.Add(metricType, metricName, metricValue)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		c.Status(http.StatusBadRequest)
 	} else {
-		w.WriteHeader(http.StatusOK)
+		c.Status(http.StatusOK)
 	}
 }
 
-func (hdl *Handler) value(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	metricType := req.PathValue("metricType")
-	metricName := req.PathValue("metricName")
+func (hdl *Handler) value(c *gin.Context) {
+	metricType := c.Param("metricType")
+	metricName := c.Param("metricName")
 
 	v, ok := hdl.store.Get(metricType, metricName)
 
 	if !ok {
-		w.WriteHeader(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 	} else {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(v))
+		c.String(http.StatusOK, v)
 	}
 
 }

@@ -46,11 +46,11 @@ func Test_update(t *testing.T) {
 			},
 		},
 		{
-			name:   "service_get_400",
+			name:   "service_get_404",
 			url:    "/update/counter/someMetric/23",
 			method: http.MethodGet,
 			want: want{
-				code:        http.StatusBadRequest,
+				code:        http.StatusNotFound,
 				response:    "",
 				contentType: "plain/text",
 			},
@@ -116,11 +116,11 @@ func Test_value(t *testing.T) {
 			},
 		},
 		{
-			name:   "service_post_400_gauge",
+			name:   "service_post_404_gauge",
 			url:    "/value/gauge/someMetric",
 			method: http.MethodPost,
 			want: want{
-				code:        http.StatusBadRequest,
+				code:        http.StatusNotFound,
 				response:    "",
 				contentType: "plain/text",
 			},
