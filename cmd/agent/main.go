@@ -14,7 +14,7 @@ var (
 	PollCount int64 = 0
 )
 
-func send(adr *string, urls *[]string) (err error) {
+func send(adr *string, urls []string) (err error) {
 	cl := &http.Client{}
 
 	server := "http://" + *adr
