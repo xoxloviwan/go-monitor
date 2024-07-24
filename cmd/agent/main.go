@@ -19,7 +19,7 @@ func send(adr *string, urls []string) (err error) {
 
 	server := "http://" + *adr
 
-	for _, url := range *urls {
+	for _, url := range urls {
 		response, err := cl.Post(server+url, "text/plain", nil)
 		if err != nil {
 			return err
@@ -40,7 +40,7 @@ func main() {
 		metrics := metrs.GetMetrics(PollCount)
 		if (PollCount*cfg.PollInterval)%cfg.ReportInterval == 0 { // например, PollInterval=1 запрос метрик раз в 1 секунду (ждем 1 секунду), ReportInterval=10 - каждую 10ую секунду отправляем метрики, значит отсекаем все которые не делятся на цело на 10
 			urls := metrics.GetUrls()
-			err := send(&cfg.Address, &urls)
+			err := send(&cfg.Address, urls)
 			if err != nil {
 				fmt.Println(err)
 			}
