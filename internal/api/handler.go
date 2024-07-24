@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"strings"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,6 +14,7 @@ type Handler struct {
 
 type Reader interface {
 	Get(metricType string, metricName string) (string, bool)
+	String() string
 }
 
 type Writer interface {
@@ -59,4 +62,11 @@ func (hdl *Handler) value(c *gin.Context) {
 		c.String(http.StatusOK, v)
 	}
 
+}
+
+func (hdl *Handler) list(c *gin.Context) {
+	c.Header("Content-Type", "text/html")
+	res := hdl.store.String()
+	res = strings.ReplaceAll(res, "\n", "<br>")
+	c.String(http.StatusOK, res)
 }

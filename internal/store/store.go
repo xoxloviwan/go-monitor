@@ -80,3 +80,14 @@ func (s *MemStorage) GetUrls() []string {
 	}
 	return urls
 }
+
+func (s *MemStorage) String() string {
+	var res = ""
+	for metricName, metricValue := range s.Gauge {
+		res = res + metricName + "=" + strconv.FormatFloat(metricValue, 'f', -1, 64) + "\n"
+	}
+	for metricName, metricValue := range s.Counter {
+		res = res + metricName + "=" + strconv.FormatInt(metricValue, 10) + "\n"
+	}
+	return res
+}
