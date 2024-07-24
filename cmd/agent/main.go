@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -10,16 +10,12 @@ import (
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 )
 
-var (
-	PollCount int64 = 0
-)
-
-func send(adr *string, urls *[]string) (err error) {
+func send(adr *string, urls []string) (err error) {
 	cl := &http.Client{}
 
 	server := "http://" + *adr
 
-	for _, url := range *urls {
+	for _, url := range urls {
 		response, err := cl.Post(server+url, "text/plain", nil)
 		if err != nil {
 			return err
@@ -35,16 +31,26 @@ func send(adr *string, urls *[]string) (err error) {
 
 func main() {
 	cfg := conf.InitConfig()
+	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
+	defer pollTicker.Stop()
+	sendTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+	defer sendTicker.Stop()
+	// Нам не нужен глобальный счетчик, т.к. он используется только внутри функции main, поэтому его можно объявить внутри main.
+	var pollCount int64
+	// Получаем метрики сразу после инициализации. Таким образом метрики будут сразу доступны для отправки.
+	metrics := metrs.GetMetrics(pollCount)
 	for {
-		PollCount += 1
-		metrics := metrs.GetMetrics(PollCount)
-		if (PollCount*cfg.PollInterval)%cfg.ReportInterval == 0 { // например, PollInterval=1 запрос метрик раз в 1 секунду (ждем 1 секунду), ReportInterval=10 - каждую 10ую секунду отправляем метрики, значит отсекаем все которые не делятся на цело на 10
+		// Здесь произойдет lock и select разлочится событием, которое произойдет первым.
+		select {
+		case <-pollTicker.C:
+			pollCount += 1
+			metrics = metrs.GetMetrics(pollCount)
+		case <-sendTicker.C:
 			urls := metrics.GetUrls()
-			err := send(&cfg.Address, &urls)
+			err := send(&cfg.Address, urls)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		}
-		time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
 	}
 }
