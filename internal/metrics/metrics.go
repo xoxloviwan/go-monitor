@@ -7,8 +7,6 @@ import (
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
-type Metrics = store.MemStorage
-
 type URLMaker interface {
 	GetUrls() []string
 }
@@ -16,7 +14,7 @@ type URLMaker interface {
 func GetMetrics(PollCount int64) URLMaker {
 	var MemStats runtime.MemStats
 	runtime.ReadMemStats(&MemStats)
-	return &Metrics{
+	return &store.MemStorage{
 		Gauge: map[string]float64{
 			"Alloc":         float64(MemStats.Alloc),
 			"BuckHashSys":   float64(MemStats.BuckHashSys),
