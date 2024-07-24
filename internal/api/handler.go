@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
+	"encoding/json"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +45,46 @@ func (hdl *Handler) update(c *gin.Context) {
 	}
 
 	err := hdl.store.Add(metricType, metricName, metricValue)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+	} else {
+		c.Status(http.StatusOK)
+	}
+}
+
+func (hdl *Handler) updateJson(c *gin.Context) {
+
+	if c.Request.Header.Get("Content-Type") != "application/json" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	type Metrics struct {
+		ID    string   `json:"id"`              // имя метрики
+		MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+		Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+		Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	}
+	var mtr Metrics
+	var metricValue string
+
+	if err := json.NewDecoder(c.Request.Body).Decode(&mtr); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	if mtr.Delta != nil {
+		metricValue = strconv.FormatInt(*mtr.Delta, 10)
+	}
+	if mtr.Value != nil {
+		metricValue = strconv.FormatFloat(*mtr.Value, 'f', -1, 64)
+	}
+	if mtr.Value == nil && mtr.Delta == nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	err := hdl.store.Add(mtr.MType, mtr.ID, metricValue)
 	if err != nil {
 		c.Status(http.StatusBadRequest)
 	} else {
