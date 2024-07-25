@@ -89,9 +89,22 @@ func (hdl *Handler) updateJson(c *gin.Context) {
 	err := hdl.store.Add(mtr.MType, mtr.ID, metricValue)
 	if err != nil {
 		c.Status(http.StatusBadRequest)
-	} else {
-		c.Status(http.StatusOK)
 	}
+	val, _ := hdl.store.Get(mtr.MType, mtr.ID)
+
+	mtrUpd := Metrics{
+		ID:    mtr.ID,
+		MType: mtr.MType,
+	}
+
+	if mtr.MType == "counter" {
+		mtrUpd.Delta = new(int64)
+		*mtrUpd.Delta, _ = strconv.ParseInt(val, 10, 64)
+	} else if mtr.MType == "gauge" {
+		mtrUpd.Value = new(float64)
+		*mtrUpd.Value, _ = strconv.ParseFloat(val, 64)
+	}
+	easyjson.MarshalToWriter(&mtrUpd, c.Writer)
 }
 
 func (hdl *Handler) value(c *gin.Context) {
@@ -106,6 +119,34 @@ func (hdl *Handler) value(c *gin.Context) {
 		c.String(http.StatusOK, v)
 	}
 
+}
+
+func (hdl *Handler) valueJson(c *gin.Context) {
+
+	if c.Request.Header.Get("Content-Type") != "application/json" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	var mtr Metrics
+
+	if err := easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	val, ok := hdl.store.Get(mtr.MType, mtr.ID)
+	if !ok {
+		c.Status(http.StatusNotFound)
+	}
+	if mtr.MType == "counter" {
+		mtr.Delta = new(int64)
+		*mtr.Delta, _ = strconv.ParseInt(val, 10, 64)
+	} else if mtr.MType == "gauge" {
+		mtr.Value = new(float64)
+		*mtr.Value, _ = strconv.ParseFloat(val, 64)
+	}
+	easyjson.MarshalToWriter(&mtr, c.Writer)
 }
 
 func (hdl *Handler) list(c *gin.Context) {

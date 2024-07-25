@@ -13,6 +13,7 @@ func SetupRouter() *gin.Engine {
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJson)
 	r.GET("/value/:metricType/:metricName", handler.value)
+	r.POST("/value/", handler.valueJson)
 	r.GET("/", handler.list)
 	return r
 }
