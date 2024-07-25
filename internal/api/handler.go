@@ -96,6 +96,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		mtrUpd.Value = new(float64)
 		*mtrUpd.Value, _ = strconv.ParseFloat(val, 64)
 	}
+	c.Writer.Header().Add("Content-Type", "application/json")
 	easyjson.MarshalToWriter(&mtrUpd, c.Writer)
 }
 
@@ -138,6 +139,7 @@ func (hdl *Handler) valueJSON(c *gin.Context) {
 		mtr.Value = new(float64)
 		*mtr.Value, _ = strconv.ParseFloat(val, 64)
 	}
+	c.Writer.Header().Add("Content-Type", "application/json")
 	easyjson.MarshalToWriter(&mtr, c.Writer)
 }
 
