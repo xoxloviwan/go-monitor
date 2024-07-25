@@ -25,7 +25,7 @@ type logParams struct {
 }
 
 func (l *logParams) String() string {
-	return l.reqPars.method + " - " + strconv.Itoa(l.respPars.code) + " - " + strconv.Itoa(l.respPars.bodySize) + " - " + l.reqPars.duration.String() + " - " + l.reqPars.URI
+	return l.method + " - " + strconv.Itoa(l.code) + " - " + strconv.Itoa(l.bodySize) + " - " + l.duration.String() + " - " + l.URI
 }
 
 func logger() gin.HandlerFunc {
