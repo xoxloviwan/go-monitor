@@ -52,7 +52,7 @@ func (hdl *Handler) update(c *gin.Context) {
 	}
 }
 
-func (hdl *Handler) updateJson(c *gin.Context) {
+func (hdl *Handler) updateJSON(c *gin.Context) {
 
 	if c.Request.Header.Get("Content-Type") != "application/json" {
 		c.Status(http.StatusBadRequest)
@@ -113,7 +113,7 @@ func (hdl *Handler) value(c *gin.Context) {
 
 }
 
-func (hdl *Handler) valueJson(c *gin.Context) {
+func (hdl *Handler) valueJSON(c *gin.Context) {
 
 	if c.Request.Header.Get("Content-Type") != "application/json" {
 		c.Status(http.StatusBadRequest)

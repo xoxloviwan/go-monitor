@@ -11,9 +11,9 @@ func SetupRouter() *gin.Engine {
 	r := gin.New()
 	r.Use(logger())
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
-	r.POST("/update/", handler.updateJson)
+	r.POST("/update/", handler.updateJSON)
 	r.GET("/value/:metricType/:metricName", handler.value)
-	r.POST("/value/", handler.valueJson)
+	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
 	return r
 }
