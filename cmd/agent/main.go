@@ -1,22 +1,29 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/mailru/easyjson"
+	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 )
 
-func send(adr *string, urls []string) (err error) {
+func send(adr *string, msgs []api.Metrics) (err error) {
 	cl := &http.Client{}
 
-	server := "http://" + *adr
+	url := "http://" + *adr + "/update/"
 
-	for _, url := range urls {
-		response, err := cl.Post(server+url, "text/plain", nil)
+	for _, msg := range msgs {
+		body, err := easyjson.Marshal(&msg)
+		if err != nil {
+			return err
+		}
+		response, err := cl.Post(url, "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			return err
 		}
@@ -46,7 +53,7 @@ func main() {
 			pollCount += 1
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
-			urls := metrics.GetUrls()
+			urls := metrics.MakeMessages()
 			err := send(&cfg.Address, urls)
 			if err != nil {
 				log.Println(err)
