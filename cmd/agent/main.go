@@ -91,8 +91,8 @@ func main() {
 			pollCount += 1
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
-			urls := metrics.MakeMessages()
-			err := send(&cfg.Address, urls)
+			msgs := metrics.MakeMessages()
+			err := send(&cfg.Address, msgs)
 			if err != nil {
 				log.Println(err)
 			}

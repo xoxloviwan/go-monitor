@@ -142,6 +142,7 @@ func (hdl *Handler) valueJSON(c *gin.Context) {
 		*mtr.Value, _ = strconv.ParseFloat(val, 64)
 	}
 	c.Writer.Header().Set("Content-Type", "application/json")
+	easyjson.MarshalToWriter(&mtr, c.Writer)
 }
 
 func (hdl *Handler) list(c *gin.Context) {
