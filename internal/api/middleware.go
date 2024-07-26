@@ -2,7 +2,9 @@ package api
 
 import (
 	"compress/gzip"
+	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +76,36 @@ func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
 
+// compressReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
+// декомпрессировать получаемые от клиента данные
+type compressReader struct {
+	r  io.ReadCloser
+	zr *gzip.Reader
+}
+
+func newCompressReader(r io.ReadCloser) (*compressReader, error) {
+	zr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressReader{
+		r:  r,
+		zr: zr,
+	}, nil
+}
+
+func (c compressReader) Read(p []byte) (n int, err error) {
+	return c.zr.Read(p)
+}
+
+func (c *compressReader) Close() error {
+	if err := c.r.Close(); err != nil {
+		return err
+	}
+	return c.zr.Close()
+}
+
 func compressGzip() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		acceptEncoding := ctx.Request.Header.Get("Accept-Encoding")
@@ -81,9 +113,22 @@ func compressGzip() gin.HandlerFunc {
 		if supportsGzip {
 			cw := newCompressWriter(ctx.Writer)
 			cw.Header().Set("Content-Encoding", "gzip")
-			defer cw.Close()
 			ctx.Writer = cw
+			defer cw.Close()
 		}
+
+		contentEncoding := ctx.Request.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			cr, err := newCompressReader(ctx.Request.Body)
+			if err != nil {
+				ctx.Writer.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			ctx.Request.Body = cr
+			defer cr.Close()
+		}
+
 		ctx.Next()
 	}
 }
