@@ -10,6 +10,7 @@ func SetupRouter() *gin.Engine {
 	handler := NewHandler(store)
 	r := gin.New()
 	r.Use(logger())
+	r.Use(compressGzip())
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)
 	r.GET("/value/:metricType/:metricName", handler.value)

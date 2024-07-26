@@ -81,6 +81,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 	err := hdl.store.Add(mtr.MType, mtr.ID, metricValue)
 	if err != nil {
 		c.Status(http.StatusBadRequest)
+		return
 	}
 	val, _ := hdl.store.Get(mtr.MType, mtr.ID)
 
@@ -96,7 +97,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		mtrUpd.Value = new(float64)
 		*mtrUpd.Value, _ = strconv.ParseFloat(val, 64)
 	}
-	c.Writer.Header().Add("Content-Type", "application/json")
+	c.Writer.Header().Set("Content-Type", "application/json")
 	easyjson.MarshalToWriter(&mtrUpd, c.Writer)
 }
 
@@ -131,6 +132,7 @@ func (hdl *Handler) valueJSON(c *gin.Context) {
 	val, ok := hdl.store.Get(mtr.MType, mtr.ID)
 	if !ok {
 		c.Status(http.StatusNotFound)
+		return
 	}
 	if mtr.MType == "counter" {
 		mtr.Delta = new(int64)
@@ -139,8 +141,7 @@ func (hdl *Handler) valueJSON(c *gin.Context) {
 		mtr.Value = new(float64)
 		*mtr.Value, _ = strconv.ParseFloat(val, 64)
 	}
-	c.Writer.Header().Add("Content-Type", "application/json")
-	easyjson.MarshalToWriter(&mtr, c.Writer)
+	c.Writer.Header().Set("Content-Type", "application/json")
 }
 
 func (hdl *Handler) list(c *gin.Context) {

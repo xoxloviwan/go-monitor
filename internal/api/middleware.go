@@ -1,8 +1,10 @@
 package api
 
 import (
+	"compress/gzip"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -48,5 +50,40 @@ func logger() gin.HandlerFunc {
 		}
 
 		slog.Info(pars.String())
+	}
+}
+
+type compressWriter struct {
+	gin.ResponseWriter
+	zw *gzip.Writer
+}
+
+func newCompressWriter(w gin.ResponseWriter) *compressWriter {
+	return &compressWriter{
+		ResponseWriter: w,
+		zw:             gzip.NewWriter(w),
+	}
+}
+
+func (c *compressWriter) Write(p []byte) (int, error) {
+	return c.zw.Write(p)
+}
+
+// Close закрывает gzip.Writer и досылает все данные из буфера.
+func (c *compressWriter) Close() error {
+	return c.zw.Close()
+}
+
+func compressGzip() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		acceptEncoding := ctx.Request.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		if supportsGzip {
+			cw := newCompressWriter(ctx.Writer)
+			cw.Header().Set("Content-Encoding", "gzip")
+			defer cw.Close()
+			ctx.Writer = cw
+		}
+		ctx.Next()
 	}
 }
