@@ -2,7 +2,10 @@ package store
 
 import (
 	"errors"
+	"os"
 	"strconv"
+
+	"github.com/mailru/easyjson"
 )
 
 const CounterName = "counter"
@@ -12,6 +15,7 @@ type Gauge map[string]float64
 
 type Counter map[string]int64
 
+// easyjson:json
 type MemStorage struct {
 	Gauge
 	Counter
@@ -77,4 +81,18 @@ func (s *MemStorage) String() string {
 		res = res + metricName + "=" + strconv.FormatInt(metricValue, 10) + "\n"
 	}
 	return res
+}
+
+func (s *MemStorage) SaveToFile(path string) error {
+	data, err := easyjson.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+
+func (s *MemStorage) RestoreFromFile(path string) error {
+
+	return nil
 }
