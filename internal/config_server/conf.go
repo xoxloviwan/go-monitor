@@ -8,15 +8,22 @@ import (
 )
 
 const (
-	AddressDefault = "localhost:8080"
+	addressDefault       = "localhost:8080"
+	storeIntervalDefault = 10
 )
 
 var (
-	address = flag.String("a", AddressDefault, "server adress")
+	address         = flag.String("a", addressDefault, "server adress")
+	storeInterval   = flag.Int("s", storeIntervalDefault, "store interval in seconds")
+	fileStoragePath = flag.String("a", "", "path to file with metrics")
+	restore         = flag.Bool("r", true, "if need to restore data on start")
 )
 
 type Config struct {
-	Address string `envDefault:"localhost:8080"`
+	Address         string `envDefault:"localhost:8080"`
+	StoreInterval   int    `envDefault:"10"`
+	FileStoragePath string `envDefault:""`
+	Restore         bool   `envDefault:"true"`
 }
 
 func InitConfig() Config {
@@ -29,8 +36,20 @@ func InitConfig() Config {
 	if len(flag.Args()) > 0 {
 		log.Fatal("Too many arguments")
 	}
-	if cfg.Address != *address && cfg.Address == AddressDefault {
+	if cfg.Address != *address && cfg.Address == addressDefault {
 		cfg.Address = *address
+	}
+
+	if cfg.StoreInterval != *storeInterval && cfg.StoreInterval == storeIntervalDefault {
+		cfg.StoreInterval = *storeInterval
+	}
+
+	if cfg.Restore != *restore {
+		cfg.Restore = false
+	}
+
+	if cfg.FileStoragePath != *fileStoragePath && cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = *fileStoragePath
 	}
 	return cfg
 }
