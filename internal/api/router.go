@@ -1,13 +1,49 @@
 package api
 
 import (
+	"fmt"
+	"log"
+	"log/slog"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
-func SetupRouter() *gin.Engine {
-	store := store.NewMemStorage()
-	handler := NewHandler(store)
+func RunServer(address string, storePath string, restore bool, storeInterval int) error {
+	s := store.NewMemStorage()
+	if restore {
+		err := s.RestoreFromFile(storePath)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	h := NewHandler(s)
+	r := SetupRouter(h)
+	wasError := make(chan error)
+	go func() {
+		err := r.Run(address)
+		if err != nil {
+			wasError <- err
+		}
+	}()
+	backupTicker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	defer backupTicker.Stop()
+	for {
+		select {
+		case <-backupTicker.C:
+			slog.Info(fmt.Sprintf("Backup to file %s ...", storePath))
+			err := s.SaveToFile(storePath)
+			if err != nil {
+				return err
+			}
+		case err := <-wasError:
+			return err
+		}
+	}
+}
+
+func SetupRouter(handler *Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(logger())
 	r.Use(compressGzip())

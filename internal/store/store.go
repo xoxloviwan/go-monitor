@@ -17,8 +17,8 @@ type Counter map[string]int64
 
 // easyjson:json
 type MemStorage struct {
-	Gauge
-	Counter
+	Gauge   `json:"gauge"`
+	Counter `json:"counter"`
 }
 
 func NewMemStorage() *MemStorage {
@@ -83,7 +83,7 @@ func (s *MemStorage) String() string {
 	return res
 }
 
-func (s *MemStorage) SaveToFile(path string) error {
+func (s MemStorage) SaveToFile(path string) error {
 	data, err := easyjson.Marshal(s)
 	if err != nil {
 		return err
@@ -93,6 +93,9 @@ func (s *MemStorage) SaveToFile(path string) error {
 }
 
 func (s *MemStorage) RestoreFromFile(path string) error {
-
-	return nil
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return easyjson.Unmarshal(data, s)
 }

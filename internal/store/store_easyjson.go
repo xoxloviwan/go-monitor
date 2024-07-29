@@ -36,6 +36,38 @@ func easyjson55774c79DecodeGithubComXoxloviwanGoMonitorInternalStore(in *jlexer.
 			continue
 		}
 		switch key {
+		case "gauge":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('{')
+				out.Gauge = make(Gauge)
+				for !in.IsDelim('}') {
+					key := string(in.String())
+					in.WantColon()
+					var v1 float64
+					v1 = float64(in.Float64())
+					(out.Gauge)[key] = v1
+					in.WantComma()
+				}
+				in.Delim('}')
+			}
+		case "counter":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('{')
+				out.Counter = make(Counter)
+				for !in.IsDelim('}') {
+					key := string(in.String())
+					in.WantColon()
+					var v2 int64
+					v2 = int64(in.Int64())
+					(out.Counter)[key] = v2
+					in.WantComma()
+				}
+				in.Delim('}')
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -50,6 +82,48 @@ func easyjson55774c79EncodeGithubComXoxloviwanGoMonitorInternalStore(out *jwrite
 	out.RawByte('{')
 	first := true
 	_ = first
+	{
+		const prefix string = ",\"gauge\":"
+		out.RawString(prefix[1:])
+		if in.Gauge == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
+			out.RawString(`null`)
+		} else {
+			out.RawByte('{')
+			v3First := true
+			for v3Name, v3Value := range in.Gauge {
+				if v3First {
+					v3First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.String(string(v3Name))
+				out.RawByte(':')
+				out.Float64(float64(v3Value))
+			}
+			out.RawByte('}')
+		}
+	}
+	{
+		const prefix string = ",\"counter\":"
+		out.RawString(prefix)
+		if in.Counter == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
+			out.RawString(`null`)
+		} else {
+			out.RawByte('{')
+			v4First := true
+			for v4Name, v4Value := range in.Counter {
+				if v4First {
+					v4First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.String(string(v4Name))
+				out.RawByte(':')
+				out.Int64(int64(v4Value))
+			}
+			out.RawByte('}')
+		}
+	}
 	out.RawByte('}')
 }
 

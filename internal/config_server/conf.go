@@ -8,21 +8,22 @@ import (
 )
 
 const (
-	addressDefault       = "localhost:8080"
-	storeIntervalDefault = 10
+	addressDefault         = "localhost:8080"
+	storeIntervalDefault   = 300
+	fileStoragePathDefault = "metrics.json"
 )
 
 var (
 	address         = flag.String("a", addressDefault, "server adress")
-	storeInterval   = flag.Int("s", storeIntervalDefault, "store interval in seconds")
-	fileStoragePath = flag.String("a", "", "path to file with metrics")
+	storeInterval   = flag.Int("i", storeIntervalDefault, "store interval in seconds")
+	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
 )
 
 type Config struct {
 	Address         string `envDefault:"localhost:8080"`
-	StoreInterval   int    `envDefault:"10"`
-	FileStoragePath string `envDefault:""`
+	StoreInterval   int    `envDefault:"300"`
+	FileStoragePath string `envDefault:"metrics.json"`
 	Restore         bool   `envDefault:"true"`
 }
 
@@ -48,7 +49,7 @@ func InitConfig() Config {
 		cfg.Restore = false
 	}
 
-	if cfg.FileStoragePath != *fileStoragePath && cfg.FileStoragePath == "" {
+	if cfg.FileStoragePath != *fileStoragePath && cfg.FileStoragePath == fileStoragePathDefault {
 		cfg.FileStoragePath = *fileStoragePath
 	}
 	return cfg

@@ -9,8 +9,7 @@ import (
 
 func main() {
 	cfg := conf.InitConfig()
-	r := api.SetupRouter()
-	err := r.Run(cfg.Address)
+	err := api.RunServer(cfg.Address, cfg.FileStoragePath, cfg.Restore, cfg.StoreInterval)
 	if err != nil {
 		log.Fatal(err)
 	}
