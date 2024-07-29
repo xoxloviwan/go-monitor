@@ -20,7 +20,7 @@ type testcase []struct {
 	want   want
 }
 
-var router = SetupRouter()
+var router, _ = SetupRouter()
 
 func Test_update(t *testing.T) {
 

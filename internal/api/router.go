@@ -11,15 +11,14 @@ import (
 )
 
 func RunServer(address string, storePath string, restore bool, storeInterval int) error {
-	s := store.NewMemStorage()
+	r, s := SetupRouter()
 	if restore {
 		err := s.RestoreFromFile(storePath)
 		if err != nil {
 			log.Println(err)
 		}
 	}
-	h := NewHandler(s)
-	r := SetupRouter(h)
+
 	wasError := make(chan error)
 	go func() {
 		err := r.Run(address)
@@ -43,7 +42,9 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 	}
 }
 
-func SetupRouter(handler *Handler) *gin.Engine {
+func SetupRouter() (*gin.Engine, *store.MemStorage) {
+	store := store.NewMemStorage()
+	handler := NewHandler(store)
 	r := gin.New()
 	r.Use(logger())
 	r.Use(compressGzip())
@@ -52,5 +53,5 @@ func SetupRouter(handler *Handler) *gin.Engine {
 	r.GET("/value/:metricType/:metricName", handler.value)
 	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
-	return r
+	return r, store
 }
