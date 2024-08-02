@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xoxloviwan/go-monitor/internal/store"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func RunServer(address string, storePath string, restore bool, storeInterval int) error {
@@ -44,7 +47,15 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 
 func SetupRouter() (*gin.Engine, *store.MemStorage) {
 	store := store.NewMemStorage()
-	handler := NewHandler(store)
+	ps := fmt.Sprintf("host=%s user=%s password=%s database=postgres sslmode=disable",
+		`localhost:5432`, `postres`, `12345`)
+
+	db, err := sql.Open("pgx", ps)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//defer db.Close()
+	handler := NewHandler(store, db)
 	r := gin.New()
 	r.Use(logger())
 	r.Use(compressGzip())
@@ -53,5 +64,6 @@ func SetupRouter() (*gin.Engine, *store.MemStorage) {
 	r.GET("/value/:metricType/:metricName", handler.value)
 	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
+	r.GET("/ping", handler.ping)
 	return r, store
 }
