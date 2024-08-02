@@ -16,8 +16,12 @@ import (
 )
 
 func RunServer(address string, storePath string, restore bool, storeInterval int) error {
-	r, s, db := SetupRouter()
+	db, err := initDB()
+	if err != nil {
+		return err
+	}
 	defer db.Close()
+	r, s := SetupRouter(db)
 	if restore {
 		err := s.RestoreFromFile(storePath)
 		if err != nil {
@@ -54,12 +58,8 @@ func initDB() (*sql.DB, error) {
 	return sql.Open("pgx", ps)
 }
 
-func SetupRouter() (*gin.Engine, *store.MemStorage, *sql.DB) {
+func SetupRouter(db *sql.DB) (*gin.Engine, *store.MemStorage) {
 	store := store.NewMemStorage()
-	db, err := initDB()
-	if err != nil {
-		log.Fatal(err)
-	}
 	handler := NewHandler(store)
 	r := gin.New()
 	r.Use(logger())
@@ -81,5 +81,5 @@ func SetupRouter() (*gin.Engine, *store.MemStorage, *sql.DB) {
 		c.Status(http.StatusOK)
 	})
 
-	return r, store, db
+	return r, store
 }
