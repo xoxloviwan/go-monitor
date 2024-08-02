@@ -47,8 +47,7 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 
 func SetupRouter() (*gin.Engine, *store.MemStorage) {
 	store := store.NewMemStorage()
-	ps := fmt.Sprintf("host=%s user=%s password=%s database=postgres sslmode=disable",
-		`localhost:5432`, `postres`, `12345`)
+	ps := "postgres://postgres:12345@localhost:5432/postgres"
 
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
