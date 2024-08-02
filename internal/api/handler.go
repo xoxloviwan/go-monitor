@@ -1,15 +1,10 @@
 package api
 
 import (
-	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"strings"
-
-	"context"
-	"database/sql"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
@@ -17,7 +12,6 @@ import (
 
 type Handler struct {
 	store ReaderWriter
-	db    *sql.DB
 }
 
 type Reader interface {
@@ -34,10 +28,9 @@ type ReaderWriter interface {
 	Writer
 }
 
-func NewHandler(store ReaderWriter, db *sql.DB) *Handler {
+func NewHandler(store ReaderWriter) *Handler {
 	return &Handler{
 		store: store,
-		db:    db,
 	}
 }
 
@@ -157,16 +150,4 @@ func (hdl *Handler) list(c *gin.Context) {
 	res := hdl.store.String()
 	res = strings.ReplaceAll(res, "\n", "<br>")
 	c.String(http.StatusOK, res)
-}
-
-func (hdl *Handler) ping(c *gin.Context) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := hdl.db.PingContext(ctx); err != nil {
-		log.Println("ping error:", err)
-		c.Status(http.StatusInternalServerError)
-		return
-	}
-	c.Status(http.StatusOK)
 }

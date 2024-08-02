@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +16,8 @@ import (
 )
 
 func RunServer(address string, storePath string, restore bool, storeInterval int) error {
-	r, s := SetupRouter()
+	r, s, db := SetupRouter()
+	defer db.Close()
 	if restore {
 		err := s.RestoreFromFile(storePath)
 		if err != nil {
@@ -45,16 +48,19 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 	}
 }
 
-func SetupRouter() (*gin.Engine, *store.MemStorage) {
-	store := store.NewMemStorage()
-	ps := "postgres://postgres:12345@localhost:5432/postgres"
+func initDB() (*sql.DB, error) {
+	ps := fmt.Sprintf("host=%s user=%s password=%s database=postgres sslmode=disable",
+		`localhost`, `postgres`, `12345`)
+	return sql.Open("pgx", ps)
+}
 
-	db, err := sql.Open("pgx", ps)
+func SetupRouter() (*gin.Engine, *store.MemStorage, *sql.DB) {
+	store := store.NewMemStorage()
+	db, err := initDB()
 	if err != nil {
 		log.Fatal(err)
 	}
-	//defer db.Close()
-	handler := NewHandler(store, db)
+	handler := NewHandler(store)
 	r := gin.New()
 	r.Use(logger())
 	r.Use(compressGzip())
@@ -63,6 +69,17 @@ func SetupRouter() (*gin.Engine, *store.MemStorage) {
 	r.GET("/value/:metricType/:metricName", handler.value)
 	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
-	r.GET("/ping", handler.ping)
-	return r, store
+
+	r.GET("/ping", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err != nil {
+			log.Println("ping error:", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Status(http.StatusOK)
+	})
+
+	return r, store, db
 }
