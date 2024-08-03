@@ -11,6 +11,7 @@ const (
 	addressDefault         = "localhost:8080"
 	storeIntervalDefault   = 300
 	fileStoragePathDefault = "metrics.json"
+	DatabaseDSNDefault     = "postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable"
 )
 
 var (
@@ -18,6 +19,7 @@ var (
 	storeInterval   = flag.Int("i", storeIntervalDefault, "store interval in seconds")
 	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
+	databaseDSN     = flag.String("d", DatabaseDSNDefault, "database DSN")
 )
 
 type Config struct {
@@ -25,6 +27,7 @@ type Config struct {
 	StoreInterval   int    `envDefault:"300"`
 	FileStoragePath string `envDefault:"metrics.json"`
 	Restore         bool   `envDefault:"true"`
+	DatabaseDSN     string `envDefault:"postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable"`
 }
 
 func InitConfig() Config {
@@ -51,6 +54,9 @@ func InitConfig() Config {
 
 	if cfg.FileStoragePath != *fileStoragePath && cfg.FileStoragePath == fileStoragePathDefault {
 		cfg.FileStoragePath = *fileStoragePath
+	}
+	if cfg.DatabaseDSN != *databaseDSN && cfg.DatabaseDSN == DatabaseDSNDefault {
+		cfg.DatabaseDSN = *databaseDSN
 	}
 	return cfg
 }

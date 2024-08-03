@@ -10,20 +10,21 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	config "github.com/xoxloviwan/go-monitor/internal/config_server"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func RunServer(address string, storePath string, restore bool, storeInterval int) error {
-	db, err := initDB()
+func RunServer(cfg config.Config) error {
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 	r, s := SetupRouter(db)
-	if restore {
-		err := s.RestoreFromFile(storePath)
+	if cfg.Restore {
+		err := s.RestoreFromFile(cfg.FileStoragePath)
 		if err != nil {
 			log.Println(err)
 		}
@@ -31,18 +32,18 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 
 	wasError := make(chan error)
 	go func() {
-		err := r.Run(address)
+		err := r.Run(cfg.Address)
 		if err != nil {
 			wasError <- err
 		}
 	}()
-	backupTicker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	backupTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 	defer backupTicker.Stop()
 	for {
 		select {
 		case <-backupTicker.C:
-			slog.Info(fmt.Sprintf("Backup to file %s ...", storePath))
-			err := s.SaveToFile(storePath)
+			slog.Info(fmt.Sprintf("Backup to file %s ...", cfg.FileStoragePath))
+			err := s.SaveToFile(cfg.FileStoragePath)
 			if err != nil {
 				return err
 			}
@@ -50,12 +51,6 @@ func RunServer(address string, storePath string, restore bool, storeInterval int
 			return err
 		}
 	}
-}
-
-func initDB() (*sql.DB, error) {
-	ps := fmt.Sprintf("host=%s user=%s password=%s database=postgres sslmode=disable",
-		`localhost`, `postgres`, `12345`)
-	return sql.Open("pgx", ps)
 }
 
 func SetupRouter(db *sql.DB) (*gin.Engine, *store.MemStorage) {
