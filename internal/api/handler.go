@@ -68,15 +68,15 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		return
 	}
 
+	if mtr.Value == nil && mtr.Delta == nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
 	if mtr.Delta != nil {
 		metricValue = strconv.FormatInt(*mtr.Delta, 10)
 	}
 	if mtr.Value != nil {
 		metricValue = strconv.FormatFloat(*mtr.Value, 'f', -1, 64)
-	}
-	if mtr.Value == nil && mtr.Delta == nil {
-		c.Status(http.StatusBadRequest)
-		return
 	}
 
 	err := hdl.store.Add(mtr.MType, mtr.ID, metricValue)
