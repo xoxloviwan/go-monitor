@@ -125,8 +125,8 @@ func compressGzip() gin.HandlerFunc {
 				ctx.Writer.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			ctx.Request.Body = cr
 			defer cr.Close()
+			ctx.Request.Body = cr
 		}
 
 		ctx.Next()
