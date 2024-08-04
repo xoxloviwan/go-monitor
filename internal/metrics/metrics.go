@@ -4,19 +4,16 @@ import (
 	"math/rand"
 	"runtime"
 
+	"github.com/xoxloviwan/go-monitor/internal/api"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
-type Metrics = store.MemStorage
+type MetricsPool store.MemStorage
 
-type URLMaker interface {
-	GetUrls() []string
-}
-
-func GetMetrics(PollCount int64) URLMaker {
+func GetMetrics(PollCount int64) *MetricsPool {
 	var MemStats runtime.MemStats
 	runtime.ReadMemStats(&MemStats)
-	return &Metrics{
+	return &MetricsPool{
 		Gauge: map[string]float64{
 			"Alloc":         float64(MemStats.Alloc),
 			"BuckHashSys":   float64(MemStats.BuckHashSys),
@@ -51,4 +48,23 @@ func GetMetrics(PollCount int64) URLMaker {
 			"PollCount": PollCount,
 		},
 	}
+}
+
+func (s *MetricsPool) MakeMessages() []api.Metrics {
+	var msgs []api.Metrics
+	for metricName, metricValue := range s.Gauge {
+		msgs = append(msgs, api.Metrics{
+			ID:    metricName,
+			MType: store.GaugeName,
+			Value: &metricValue,
+		})
+	}
+	for metricName, metricValue := range s.Counter {
+		msgs = append(msgs, api.Metrics{
+			ID:    metricName,
+			MType: store.CounterName,
+			Delta: &metricValue,
+		})
+	}
+	return msgs
 }

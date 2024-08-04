@@ -20,7 +20,7 @@ type testcase []struct {
 	want   want
 }
 
-var router = SetupRouter()
+var router, _ = SetupRouter()
 
 func Test_update(t *testing.T) {
 
@@ -167,5 +167,18 @@ func Test_value(t *testing.T) {
 				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
 			}
 		})
+	}
+}
+
+func Test_list(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Error("Status code mismatch. want:", http.StatusOK, "got:", res.StatusCode)
 	}
 }

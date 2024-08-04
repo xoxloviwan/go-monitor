@@ -2,19 +2,23 @@ package store
 
 import (
 	"errors"
+	"os"
 	"strconv"
+
+	"github.com/mailru/easyjson"
 )
 
-const counterName = "counter"
-const gaugeName = "gauge"
+const CounterName = "counter"
+const GaugeName = "gauge"
 
 type Gauge map[string]float64
 
 type Counter map[string]int64
 
+// easyjson:json
 type MemStorage struct {
-	Gauge
-	Counter
+	Gauge   `json:"gauge"`
+	Counter `json:"counter"`
 }
 
 func NewMemStorage() *MemStorage {
@@ -26,14 +30,14 @@ func NewMemStorage() *MemStorage {
 
 func (s *MemStorage) Add(metricType string, metricName string, metricValue string) (err error) {
 	switch metricType {
-	case counterName:
+	case CounterName:
 		res64, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			return err
 		}
 		s.Counter[metricName] += res64
 
-	case gaugeName:
+	case GaugeName:
 		res64, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return err
@@ -47,7 +51,7 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	switch metricType {
-	case counterName:
+	case CounterName:
 		res, ok := s.Counter[metricName]
 		if !ok {
 			return "", false
@@ -55,7 +59,7 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 			m := strconv.FormatInt(res, 10)
 			return m, true
 		}
-	case gaugeName:
+	case GaugeName:
 		res, ok := s.Gauge[metricName]
 		if !ok {
 			return "", false
@@ -68,15 +72,30 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	}
 }
 
-func (s *MemStorage) GetUrls() []string {
-	var urls []string
+func (s *MemStorage) String() string {
+	var res = ""
 	for metricName, metricValue := range s.Gauge {
-		url := "/update/" + gaugeName + "/" + metricName + "/" + strconv.FormatFloat(metricValue, 'f', -1, 64)
-		urls = append(urls, url)
+		res = res + metricName + "=" + strconv.FormatFloat(metricValue, 'f', -1, 64) + "\n"
 	}
 	for metricName, metricValue := range s.Counter {
-		url := "/update/" + counterName + "/" + metricName + "/" + strconv.FormatInt(metricValue, 10)
-		urls = append(urls, url)
+		res = res + metricName + "=" + strconv.FormatInt(metricValue, 10) + "\n"
 	}
-	return urls
+	return res
+}
+
+func (s MemStorage) SaveToFile(path string) error {
+	data, err := easyjson.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+
+func (s *MemStorage) RestoreFromFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return easyjson.Unmarshal(data, s)
 }
