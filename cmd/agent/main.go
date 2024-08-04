@@ -15,10 +15,10 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr *string, msgs []api.Metrics) (err error) {
+func send(adr string, msgs []api.Metrics) (err error) {
 	cl := &http.Client{}
 
-	url := "http://" + *adr + "/update/"
+	url := "http://" + adr + "/update/"
 
 	for _, msg := range msgs {
 		body, err := easyjson.Marshal(&msg)
@@ -92,7 +92,7 @@ func main() {
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
 			msgs := metrics.MakeMessages()
-			err := send(&cfg.Address, msgs)
+			err := send(cfg.Address, msgs)
 			if err != nil {
 				log.Println(err)
 			}
