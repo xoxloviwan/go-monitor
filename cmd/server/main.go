@@ -9,7 +9,7 @@ import (
 
 func main() {
 	cfg := conf.InitConfig()
-	err := api.RunServer(cfg.Address, cfg.FileStoragePath, cfg.Restore, cfg.StoreInterval)
+	err := api.RunServer(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

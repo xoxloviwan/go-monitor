@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"runtime"
 
-	"github.com/xoxloviwan/go-monitor/internal/api"
+	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
