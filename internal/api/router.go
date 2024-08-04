@@ -47,6 +47,23 @@ func RunServer(cfg config.Config) error {
 			wasError <- err
 		}
 	}()
+
+	// NewTicker бросает panic в случае, если интервал меньше нуля.
+	if cfg.StoreInterval == 0 {
+		for {
+			select {
+			case err := <-wasError:
+				return err
+			default:
+				slog.Info(fmt.Sprintf("Backup to file %s ...", cfg.FileStoragePath))
+				err := s.SaveToFile(cfg.FileStoragePath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	backupTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 	defer backupTicker.Stop()
 	for {
