@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson"
-	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
+	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
 func send(adr *string, msgs []api.Metrics) (err error) {

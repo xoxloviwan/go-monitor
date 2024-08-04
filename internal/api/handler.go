@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
+	mtrTypes "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
 type Handler struct {
@@ -59,7 +60,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		return
 	}
 
-	var mtr Metrics
+	var mtr mtrTypes.Metrics
 	var metricValue string
 
 	if err := easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
@@ -85,7 +86,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 	}
 	val, _ := hdl.store.Get(mtr.MType, mtr.ID)
 
-	mtrUpd := Metrics{
+	mtrUpd := mtrTypes.Metrics{
 		ID:    mtr.ID,
 		MType: mtr.MType,
 	}
@@ -122,7 +123,7 @@ func (hdl *Handler) valueJSON(c *gin.Context) {
 		return
 	}
 
-	var mtr Metrics
+	var mtr mtrTypes.Metrics
 
 	if err := easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
 		c.Status(http.StatusBadRequest)
