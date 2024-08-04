@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 type want struct {
@@ -20,7 +22,11 @@ type testcase []struct {
 	want   want
 }
 
-var router, _ = SetupRouter()
+func ping(c *gin.Context) {
+	c.Status(http.StatusOK)
+}
+
+var router, _ = SetupRouter(ping)
 
 func Test_update(t *testing.T) {
 

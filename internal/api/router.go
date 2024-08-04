@@ -22,7 +22,17 @@ func RunServer(cfg config.Config) error {
 		return err
 	}
 	defer db.Close()
-	r, s := SetupRouter(db)
+	pingHandler := func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err != nil {
+			log.Println("ping error:", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Status(http.StatusOK)
+	}
+	r, s := SetupRouter(pingHandler)
 	if cfg.Restore {
 		err := s.RestoreFromFile(cfg.FileStoragePath)
 		if err != nil {
@@ -53,7 +63,7 @@ func RunServer(cfg config.Config) error {
 	}
 }
 
-func SetupRouter(db *sql.DB) (*gin.Engine, *store.MemStorage) {
+func SetupRouter(ping gin.HandlerFunc) (*gin.Engine, *store.MemStorage) {
 	store := store.NewMemStorage()
 	handler := NewHandler(store)
 	r := gin.New()
@@ -65,16 +75,7 @@ func SetupRouter(db *sql.DB) (*gin.Engine, *store.MemStorage) {
 	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
 
-	r.GET("/ping", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := db.PingContext(ctx); err != nil {
-			log.Println("ping error:", err)
-			c.Status(http.StatusInternalServerError)
-			return
-		}
-		c.Status(http.StatusOK)
-	})
+	r.GET("/ping", ping)
 
 	return r, store
 }
