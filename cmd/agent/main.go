@@ -58,17 +58,18 @@ func compressGzip(data []byte) ([]byte, error) {
 	// создаём переменную w — в неё будут записываться входящие данные,
 	// которые будут сжиматься и сохраняться в bytes.Buffer
 	w := gzip.NewWriter(&b)
+	defer func() {
+	         // обязательно нужно вызвать метод Close() — в противном случае часть данных
+	        // может не записаться в буфер b; если нужно выгрузить все упакованные данные
+	        // в какой-то момент сжатия, используйте метод Flush()
+	    	if err := w.Close(); err != nil {
+	    	    return nil, fmt.Errorf("failed compress data: %v", err)
+	    	}
+	 }
 	// запись данных
 	_, err := w.Write(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
-	}
-	// обязательно нужно вызвать метод Close() — в противном случае часть данных
-	// может не записаться в буфер b; если нужно выгрузить все упакованные данные
-	// в какой-то момент сжатия, используйте метод Flush()
-	err = w.Close()
-	if err != nil {
-		return nil, fmt.Errorf("failed compress data: %v", err)
 	}
 	// переменная b содержит сжатые данные
 	return b.Bytes(), nil
