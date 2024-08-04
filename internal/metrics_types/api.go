@@ -1,4 +1,4 @@
-package metrics_types
+package metricTypes
 
 //easyjson:json
 type Metrics struct {
