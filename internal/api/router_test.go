@@ -11,15 +11,23 @@ import (
 
 type want struct {
 	code        int
-	response    string
 	contentType string
 }
 
-type testcase []struct {
+type testcase struct {
 	name   string
 	url    string
 	method string
 	want   want
+}
+
+type testcases []testcase
+
+type testcasesWithBody []struct {
+	testcase
+	reqBody  string
+	resBody  string
+	wantBody string
 }
 
 func ping(c *gin.Context) {
@@ -30,14 +38,13 @@ var router, _ = SetupRouter(ping)
 
 func Test_update(t *testing.T) {
 
-	tests := testcase{
+	tests := testcases{
 		{
 			name:   "service_post_200_gauge",
 			url:    "/update/gauge/someMetric/23.4",
 			method: http.MethodPost,
 			want: want{
 				code:        http.StatusOK,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -47,7 +54,6 @@ func Test_update(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:        http.StatusOK,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -57,7 +63,6 @@ func Test_update(t *testing.T) {
 			method: http.MethodGet,
 			want: want{
 				code:        http.StatusNotFound,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -67,7 +72,6 @@ func Test_update(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:        http.StatusBadRequest,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -77,7 +81,6 @@ func Test_update(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:        http.StatusNotFound,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -110,14 +113,13 @@ func Test_update(t *testing.T) {
 }
 
 func Test_value(t *testing.T) {
-	tests := testcase{
+	tests := testcases{
 		{
 			name:   "service_get_200_gauge",
 			url:    "/value/gauge/someMetric",
 			method: http.MethodGet,
 			want: want{
 				code:        http.StatusOK,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -127,7 +129,6 @@ func Test_value(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:        http.StatusNotFound,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -137,7 +138,6 @@ func Test_value(t *testing.T) {
 			method: http.MethodGet,
 			want: want{
 				code:        http.StatusOK,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -147,7 +147,6 @@ func Test_value(t *testing.T) {
 			method: http.MethodGet,
 			want: want{
 				code:        http.StatusNotFound,
-				response:    "",
 				contentType: "plain/text",
 			},
 		},
@@ -186,5 +185,58 @@ func Test_list(t *testing.T) {
 
 	if res.StatusCode != http.StatusOK {
 		t.Error("Status code mismatch. want:", http.StatusOK, "got:", res.StatusCode)
+	}
+}
+
+func Test_updateJSON(t *testing.T) {
+
+	tests := testcasesWithBody{
+		{
+			testcase: testcase{
+				name:   "service_post_update_gauge_json_200",
+				url:    "/update/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+			resBody:  `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+			wantBody: `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
+			w := httptest.NewRecorder()
+
+			req.Header = map[string][]string{
+				"Content-Type": {"application/json"},
+			}
+
+			router.ServeHTTP(w, req)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			if tt.want.code != res.StatusCode {
+				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
+			// bodyBytes, err := io.ReadAll(res.Body)
+			// if err != nil {
+			// 	t.Error(err)
+			// }
+			// var cmp1,cmp2 *mt.Metrics,*mt.Metrics
+			// cmp1.UnmarshalJSON(tt.wantBody)
+
+			// for _, v := range cmp1 {
+
+			// if cmp1 != string(bodyBytes) {
+			// 	t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
+			// }
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"log/slog"
@@ -16,6 +17,7 @@ type reqPars struct {
 	URI      string
 	method   string
 	duration time.Duration
+	body     []byte
 }
 
 type respPars struct {
@@ -29,11 +31,22 @@ type logParams struct {
 }
 
 func (l *logParams) String() string {
-	return l.method + " - " + strconv.Itoa(l.code) + " - " + strconv.Itoa(l.bodySize) + " - " + l.duration.String() + " - " + l.URI
+	if len(l.body) == 0 {
+		l.body = []byte("empty body")
+	}
+	return l.method + " - " + strconv.Itoa(l.code) + " - " + strconv.Itoa(l.bodySize) + " - " + l.duration.String() + " - " + l.URI + " - " + string(l.body)
 }
 
 func logger() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+
+		// copy request body for logging
+		bodyBytes, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			bodyBytes = []byte(err.Error())
+		}
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 		// Start timer
 		start := time.Now()
 		// Process request
@@ -44,6 +57,7 @@ func logger() gin.HandlerFunc {
 				URI:      ctx.Request.URL.Path,
 				method:   ctx.Request.Method,
 				duration: time.Since(start),
+				body:     bodyBytes,
 			},
 			respPars: respPars{
 				code:     ctx.Writer.Status(),
