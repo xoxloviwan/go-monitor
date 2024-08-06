@@ -1,12 +1,15 @@
 package api
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	mt "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
 type want struct {
@@ -202,13 +205,27 @@ func Test_updateJSON(t *testing.T) {
 				},
 			},
 			reqBody:  `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
-			resBody:  `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
 			wantBody: `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+		},
+		{
+			testcase: testcase{
+				name:   "service_post_update_counter_json_200",
+				url:    "/update/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "counter", "delta": 23}`,
+			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_200_counter
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			var err error
 
 			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
 			w := httptest.NewRecorder()
@@ -225,18 +242,100 @@ func Test_updateJSON(t *testing.T) {
 			if tt.want.code != res.StatusCode {
 				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
 			}
-			// bodyBytes, err := io.ReadAll(res.Body)
-			// if err != nil {
-			// 	t.Error(err)
-			// }
-			// var cmp1,cmp2 *mt.Metrics,*mt.Metrics
-			// cmp1.UnmarshalJSON(tt.wantBody)
+			var bodyBytes []byte
+			bodyBytes, err = io.ReadAll(res.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			var cmp1 = mt.Metrics{}
+			var cmp2 = mt.Metrics{}
+			if err = cmp1.UnmarshalJSON(bodyBytes); err != nil {
+				t.Error(err)
+			}
+			if err = cmp2.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
+				t.Error(err)
+			}
 
-			// for _, v := range cmp1 {
+			if cmp1.ID != cmp2.ID || cmp1.MType != cmp2.MType ||
+				((cmp1.Delta != nil && cmp2.Delta != nil) && *cmp1.Delta != *cmp2.Delta) ||
+				((cmp1.Value != nil && cmp2.Value != nil) && *cmp1.Value != *cmp2.Value) {
+				t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
+			}
+		})
+	}
+}
 
-			// if cmp1 != string(bodyBytes) {
-			// 	t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
-			// }
+func Test_valueJSON(t *testing.T) {
+
+	tests := testcasesWithBody{
+		{
+			testcase: testcase{
+				name:   "service_post_value_gauge_json_200",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "gauge"}`,
+			wantBody: `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+		},
+		{
+			testcase: testcase{
+				name:   "service_post_value_counter_json_200",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "counter"}`,
+			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_200_counter
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var err error
+
+			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
+			w := httptest.NewRecorder()
+
+			req.Header = map[string][]string{
+				"Content-Type": {"application/json"},
+			}
+
+			router.ServeHTTP(w, req)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			if tt.want.code != res.StatusCode {
+				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
+			var bodyBytes []byte
+			bodyBytes, err = io.ReadAll(res.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			var cmp1 = mt.Metrics{}
+			var cmp2 = mt.Metrics{}
+			if err = cmp1.UnmarshalJSON(bodyBytes); err != nil {
+				t.Error(err)
+			}
+			if err = cmp2.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
+				t.Error(err)
+			}
+			fmt.Println(tt.name, string(bodyBytes))
+
+			if cmp1.ID != cmp2.ID || cmp1.MType != cmp2.MType ||
+				((cmp1.Delta != nil && cmp2.Delta != nil) && *cmp1.Delta != *cmp2.Delta) ||
+				((cmp1.Value != nil && cmp2.Value != nil) && *cmp1.Value != *cmp2.Value) {
+				t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
+			}
 		})
 	}
 }
