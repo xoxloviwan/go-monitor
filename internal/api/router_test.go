@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -329,7 +328,6 @@ func Test_valueJSON(t *testing.T) {
 			if err = cmp2.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
 				t.Error(err)
 			}
-			fmt.Println(tt.name, string(bodyBytes))
 
 			if cmp1.ID != cmp2.ID || cmp1.MType != cmp2.MType ||
 				((cmp1.Delta != nil && cmp2.Delta != nil) && *cmp1.Delta != *cmp2.Delta) ||
