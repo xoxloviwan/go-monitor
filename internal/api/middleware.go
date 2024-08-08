@@ -6,7 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
 	"time"
 
@@ -30,15 +30,18 @@ type logParams struct {
 	respPars
 }
 
-func (l *logParams) String() string {
-	if len(l.body) == 0 {
-		l.body = []byte("empty body")
-	}
-	return l.method + " - " + strconv.Itoa(l.code) + " - " + strconv.Itoa(l.bodySize) + " - " + l.duration.String() + " - " + l.URI + " - " + string(l.body)
+var Log *slog.Logger
+
+var reqId = 0
+
+func init() {
+	Log = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(Log)
 }
 
 func logger() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		reqId++
 
 		// copy request body for logging
 		bodyBytes, err := io.ReadAll(ctx.Request.Body)
@@ -47,25 +50,30 @@ func logger() gin.HandlerFunc {
 		}
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
+		Log.Info(
+			"REQ",
+			slog.Int("id", reqId),
+			slog.String("method", ctx.Request.Method),
+			slog.String("uri", ctx.Request.URL.Path),
+			slog.Int64("body_size", ctx.Request.ContentLength),
+			slog.String("ip", ctx.Request.RemoteAddr),
+			slog.String("user_agent", ctx.Request.UserAgent()),
+		)
+
+		Log.Debug("REQ_BODY", slog.Int("id", reqId), slog.String("body", string(bodyBytes)))
+
 		// Start timer
 		start := time.Now()
 		// Process request
 		ctx.Next()
 
-		pars := logParams{
-			reqPars: reqPars{
-				URI:      ctx.Request.URL.Path,
-				method:   ctx.Request.Method,
-				duration: time.Since(start),
-				body:     bodyBytes,
-			},
-			respPars: respPars{
-				code:     ctx.Writer.Status(),
-				bodySize: ctx.Writer.Size(),
-			},
-		}
-
-		slog.Info(pars.String())
+		Log.Info(
+			"RES",
+			slog.Int("id", reqId),
+			slog.Int("status", ctx.Writer.Status()),
+			slog.Duration("duration", time.Since(start)),
+			slog.Int("body_size", ctx.Writer.Size()),
+		)
 	}
 }
 
