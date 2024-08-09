@@ -18,7 +18,7 @@ var Log *slog.Logger
 var reqId = 0
 
 func init() {
-	Log = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(Log)
 }
 
@@ -50,10 +50,14 @@ func logger() gin.HandlerFunc {
 		// Process request
 		ctx.Next()
 
+		status := ctx.Writer.Status()
+		// if status > 399 {
+
+		// }
 		Log.Info(
 			"RES",
 			slog.Int("id", reqId),
-			slog.Int("status", ctx.Writer.Status()),
+			slog.Int("status", status),
 			slog.Duration("duration", time.Since(start)),
 			slog.Int("body_size", ctx.Writer.Size()),
 		)

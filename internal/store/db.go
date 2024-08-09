@@ -1,6 +1,10 @@
 package store
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+	"log"
+)
 
 type DbStorage struct {
 	db *sql.DB
@@ -12,14 +16,96 @@ func NewDbStorage(db *sql.DB) *DbStorage {
 	}
 }
 
+func (s *DbStorage) CreateTable() error {
+	const createTableQuery = `CREATE TABLE IF NOT EXISTS "metrics" (
+		"id" INTEGER PRIMARY KEY,
+		"Alloc" DOUBLE PRECISION,
+		"BuckHashSys" DOUBLE PRECISION,
+		"Frees" DOUBLE PRECISION,
+		"GCCPUFraction" DOUBLE PRECISION,
+		"GCSys" DOUBLE PRECISION,
+		"HeapAlloc" DOUBLE PRECISION,
+		"HeapIdle" DOUBLE PRECISION,
+		"HeapInuse" DOUBLE PRECISION,
+		"HeapObjects" DOUBLE PRECISION,
+		"HeapReleased" DOUBLE PRECISION,
+		"HeapSys" DOUBLE PRECISION,
+		"LastGC" DOUBLE PRECISION,
+		"Lookups" DOUBLE PRECISION,
+		"MCacheInuse" DOUBLE PRECISION,
+		"MCacheSys" DOUBLE PRECISION,
+		"MSpanInuse" DOUBLE PRECISION,
+		"MSpanSys" DOUBLE PRECISION,
+		"Mallocs" DOUBLE PRECISION,
+		"NextGC" DOUBLE PRECISION,
+		"NumForcedGC" DOUBLE PRECISION,
+		"NumGC" DOUBLE PRECISION,
+		"OtherSys" DOUBLE PRECISION,
+		"PauseTotalNs" DOUBLE PRECISION,
+		"StackInuse" DOUBLE PRECISION,
+		"StackSys" DOUBLE PRECISION,
+		"Sys" DOUBLE PRECISION,
+		"TotalAlloc" DOUBLE PRECISION,
+		"RandomValue" DOUBLE PRECISION,
+		"PollCount" INTEGER
+	)`
+	var err error
+	_, err = s.db.ExecContext(context.Background(), createTableQuery)
+	return err
+}
+
+func (s *DbStorage) InitLine() error {
+	var err error
+	_, err = s.db.ExecContext(context.Background(), `TRUNCATE metrics`)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(context.Background(), `INSERT INTO metrics (
+		"id",
+		"Alloc",
+		"BuckHashSys",
+		"Frees",
+		"GCCPUFraction",
+		"GCSys",
+		"HeapAlloc",
+		"HeapIdle",
+		"HeapInuse",
+		"HeapObjects",
+		"HeapReleased",
+		"HeapSys",
+		"LastGC",
+		"Lookups",
+		"MCacheInuse",
+		"MCacheSys",
+		"MSpanInuse",
+		"MSpanSys",
+		"Mallocs",
+		"NextGC",
+		"NumForcedGC",
+		"NumGC",
+		"OtherSys",
+		"PauseTotalNs",
+		"StackInuse",
+		"StackSys",
+		"Sys",
+		"TotalAlloc",
+		"RandomValue",
+		"PollCount"
+	)
+	VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)`)
+	return err
+}
+
 func (s *DbStorage) Add(metricType string, metricName string, metricValue string) (err error) {
-	// TODO
-	return nil
+	query := `UPDATE metrics SET "` + metricName + `" = $1 WHERE id = 0`
+	log.Println(query)
+	_, err = s.db.ExecContext(context.Background(), query, metricValue)
+	return err
 }
 
 func (s *DbStorage) Get(metricType string, metricName string) (string, bool) {
 	// TODO
-	return "", false
+	return "0", true
 }
 
 func (s *DbStorage) String() string {

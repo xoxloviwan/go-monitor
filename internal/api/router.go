@@ -32,8 +32,16 @@ func RunServer(cfg config.Config) error {
 		}
 		c.Status(http.StatusOK)
 	}
-	s := store.NewMemStorage()
-	//s := store.NewDbStorage(db)
+	//s := store.NewMemStorage()
+	s := store.NewDbStorage(db)
+	err = s.CreateTable()
+	if err != nil {
+		return fmt.Errorf("create table error: %v", err)
+	}
+	err = s.InitLine()
+	if err != nil {
+		return fmt.Errorf("create init line error: %v", err)
+	}
 	r := SetupRouter(pingHandler, s)
 	if cfg.Restore {
 		RestoreData(s, cfg.FileStoragePath)
