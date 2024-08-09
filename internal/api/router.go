@@ -32,12 +32,11 @@ func RunServer(cfg config.Config) error {
 		}
 		c.Status(http.StatusOK)
 	}
-	r, s := SetupRouter(pingHandler)
+	s := store.NewMemStorage()
+	//s := store.NewDbStorage(db)
+	r := SetupRouter(pingHandler, s)
 	if cfg.Restore {
-		err := s.RestoreFromFile(cfg.FileStoragePath)
-		if err != nil {
-			log.Println(err)
-		}
+		RestoreData(s, cfg.FileStoragePath)
 	}
 
 	wasError := make(chan error)
@@ -55,8 +54,7 @@ func RunServer(cfg config.Config) error {
 			case err := <-wasError:
 				return err
 			default:
-				slog.Info(fmt.Sprintf("Backup to file %s ...", cfg.FileStoragePath))
-				err := s.SaveToFile(cfg.FileStoragePath)
+				err := BackupData(s, cfg.FileStoragePath)
 				if err != nil {
 					return err
 				}
@@ -69,8 +67,7 @@ func RunServer(cfg config.Config) error {
 	for {
 		select {
 		case <-backupTicker.C:
-			slog.Info(fmt.Sprintf("Backup to file %s ...", cfg.FileStoragePath))
-			err := s.SaveToFile(cfg.FileStoragePath)
+			err := BackupData(s, cfg.FileStoragePath)
 			if err != nil {
 				return err
 			}
@@ -80,9 +77,8 @@ func RunServer(cfg config.Config) error {
 	}
 }
 
-func SetupRouter(ping gin.HandlerFunc) (*gin.Engine, *store.MemStorage) {
-	store := store.NewMemStorage()
-	handler := NewHandler(store)
+func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
+	handler := NewHandler(dbstore)
 	r := gin.New()
 	r.Use(logger())
 	r.Use(compressGzip())
@@ -94,5 +90,22 @@ func SetupRouter(ping gin.HandlerFunc) (*gin.Engine, *store.MemStorage) {
 
 	r.GET("/ping", ping)
 
-	return r, store
+	return r
+}
+
+type Backuper interface {
+	SaveToFile(path string) error
+	RestoreFromFile(path string) error
+}
+
+func RestoreData(b Backuper, path string) {
+	err := b.RestoreFromFile(path)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func BackupData(b Backuper, path string) error {
+	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
+	return b.SaveToFile(path)
 }
