@@ -13,23 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type reqPars struct {
-	URI      string
-	method   string
-	duration time.Duration
-	body     []byte
-}
-
-type respPars struct {
-	code     int
-	bodySize int
-}
-
-type logParams struct {
-	reqPars
-	respPars
-}
-
 var Log *slog.Logger
 
 var reqId = 0
