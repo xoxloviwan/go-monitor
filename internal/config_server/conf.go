@@ -10,8 +10,8 @@ import (
 const (
 	addressDefault         = "localhost:8080"
 	storeIntervalDefault   = 300
-	fileStoragePathDefault = "metrics.json"
-	DatabaseDSNDefault     = "postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable"
+	fileStoragePathDefault = ""
+	DatabaseDSNDefault     = ""
 )
 
 var (
@@ -25,9 +25,9 @@ var (
 type Config struct {
 	Address         string `envDefault:"localhost:8080"`
 	StoreInterval   int    `envDefault:"300"`
-	FileStoragePath string `envDefault:"metrics.json"`
+	FileStoragePath string `envDefault:""`
 	Restore         bool   `envDefault:"true"`
-	DatabaseDSN     string `envDefault:"postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable"`
+	DatabaseDSN     string `envDefault:""`
 }
 
 func InitConfig() Config {

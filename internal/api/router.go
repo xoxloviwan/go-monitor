@@ -17,30 +17,42 @@ import (
 )
 
 func RunServer(cfg config.Config) error {
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	pingHandler := func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := db.PingContext(ctx); err != nil {
-			c.Error(err)
-			c.Status(http.StatusInternalServerError)
-			return
+	var s Storage
+	var pingHandler gin.HandlerFunc
+
+	mems := store.NewMemStorage()
+
+	if cfg.DatabaseDSN == "" {
+		s = mems
+		pingHandler = func(c *gin.Context) {
+			c.Status(http.StatusOK)
 		}
-		c.Status(http.StatusOK)
-	}
-	//s := store.NewMemStorage()
-	s := store.NewDbStorage(db)
-	err = s.CreateTable()
-	if err != nil {
-		return fmt.Errorf("create table error: %v", err)
-	}
-	err = s.InitLine()
-	if err != nil {
-		return fmt.Errorf("create init line error: %v", err)
+	} else {
+		db, err := sql.Open("pgx", cfg.DatabaseDSN)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		pingHandler = func(c *gin.Context) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := db.PingContext(ctx); err != nil {
+				c.Error(err)
+				c.Status(http.StatusInternalServerError)
+				return
+			}
+			c.Status(http.StatusOK)
+		}
+		dbs := store.NewDbStorage(db)
+		err = dbs.CreateTable()
+		if err != nil {
+			return fmt.Errorf("create table error: %v", err)
+		}
+		err = dbs.SetLine(mems)
+		if err != nil {
+			return fmt.Errorf("create init line error: %v", err)
+		}
+		s = dbs
 	}
 	r := SetupRouter(pingHandler, s)
 	if cfg.Restore {
@@ -104,6 +116,11 @@ func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
 type Backuper interface {
 	SaveToFile(path string) error
 	RestoreFromFile(path string) error
+}
+
+type Storage interface {
+	Backuper
+	ReaderWriter
 }
 
 func RestoreData(b Backuper, path string) {
