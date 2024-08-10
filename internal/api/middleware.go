@@ -15,7 +15,7 @@ import (
 
 var Log *slog.Logger
 
-var reqId = 0
+var reqID = 0
 
 func init() {
 	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -25,7 +25,7 @@ func init() {
 
 func logger() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		reqId++
+		reqID++
 
 		// copy request body for logging
 		bodyBytes, err := io.ReadAll(ctx.Request.Body)
@@ -36,7 +36,7 @@ func logger() gin.HandlerFunc {
 
 		Log.Info(
 			"REQ",
-			slog.Int("id", reqId),
+			slog.Int("id", reqID),
 			slog.String("method", ctx.Request.Method),
 			slog.String("uri", ctx.Request.URL.Path),
 			slog.Int64("body_size", ctx.Request.ContentLength),
@@ -44,7 +44,7 @@ func logger() gin.HandlerFunc {
 			slog.String("user_agent", ctx.Request.UserAgent()),
 		)
 
-		Log.Debug("REQ_BODY", slog.Int("id", reqId), slog.String("body", string(bodyBytes)))
+		Log.Debug("REQ_BODY", slog.Int("id", reqID), slog.String("body", string(bodyBytes)))
 
 		// Start timer
 		start := time.Now()
@@ -54,7 +54,7 @@ func logger() gin.HandlerFunc {
 		status := ctx.Writer.Status()
 		if status > 399 {
 			Log.Error("RES",
-				slog.Int("id", reqId),
+				slog.Int("id", reqID),
 				slog.Int("status", status),
 				slog.Duration("duration", time.Since(start)),
 				slog.String("err", ctx.Errors.String()),
@@ -63,7 +63,7 @@ func logger() gin.HandlerFunc {
 		}
 		Log.Info(
 			"RES",
-			slog.Int("id", reqId),
+			slog.Int("id", reqID),
 			slog.Int("status", status),
 			slog.Duration("duration", time.Since(start)),
 			slog.Int("body_size", ctx.Writer.Size()),
