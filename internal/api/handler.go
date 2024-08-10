@@ -57,6 +57,7 @@ func (hdl *Handler) update(c *gin.Context) {
 func (hdl *Handler) updateJSON(c *gin.Context) {
 
 	if c.Request.Header.Get("Content-Type") != "application/json" {
+		c.Error(fmt.Errorf("invalid content type"))
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -66,11 +67,13 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 	var err error
 
 	if err = easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
+		c.Error(err)
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
 	if mtr.Value == nil && mtr.Delta == nil {
+		c.Error(fmt.Errorf("nil value/delta"))
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -128,19 +131,23 @@ func (hdl *Handler) value(c *gin.Context) {
 func (hdl *Handler) valueJSON(c *gin.Context) {
 
 	if c.Request.Header.Get("Content-Type") != "application/json" {
+		c.Error(fmt.Errorf("invalid content type"))
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
 	var mtr mtrTypes.Metrics
+	var err error
 
-	if err := easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
+	if err = easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
+		c.Error(err)
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
 	val, ok := hdl.store.Get(mtr.MType, mtr.ID)
 	if !ok {
+		c.Error(fmt.Errorf("metric %s in store not found", mtr.ID))
 		c.Status(http.StatusNotFound)
 		return
 	}

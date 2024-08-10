@@ -138,7 +138,7 @@ func compressGzip() gin.HandlerFunc {
 		if sendsGzip {
 			cr, err := newCompressReader(ctx.Request.Body)
 			if err != nil {
-				ctx.Writer.WriteHeader(http.StatusInternalServerError)
+				ctx.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
 			defer cr.Close()
