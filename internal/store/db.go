@@ -118,8 +118,39 @@ func (s *DbStorage) Get(metricType string, metricName string) (string, bool) {
 }
 
 func (s *DbStorage) String() string {
-	// TODO
-	return ""
+	query := "SELECT * FROM metrics WHERE id = 0"
+	log.Println(query)
+	var err error
+	var rows *sql.Rows
+	rows, err = s.db.QueryContext(context.Background(), query)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+	var cols []string
+	cols, err = rows.Columns()
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+	values := make([][]byte, len(cols))
+	dest := make([]interface{}, len(cols)) // A temporary interface{} slice
+	for i := range values {
+		dest[i] = &values[i] // Put pointers to each string in the interface slice
+	}
+
+	for rows.Next() {
+		err := rows.Scan(dest...)
+		if err != nil {
+			log.Println(err)
+			return ""
+		}
+	}
+	var str = ""
+	for i, colName := range cols {
+		str += fmt.Sprintf("%s: %s\n", colName, values[i])
+	}
+	return str
 }
 
 func (s *DbStorage) SaveToFile(path string) error {
