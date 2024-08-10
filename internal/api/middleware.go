@@ -20,6 +20,7 @@ var reqId = 0
 func init() {
 	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(Log)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
 func logger() gin.HandlerFunc {
