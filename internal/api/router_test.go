@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	mt "github.com/xoxloviwan/go-monitor/internal/metrics_types"
+	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
 type want struct {
@@ -36,7 +37,7 @@ func ping(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-var router, _ = SetupRouter(ping)
+var router = SetupRouter(ping, store.NewMemStorage())
 
 func Test_update(t *testing.T) {
 
