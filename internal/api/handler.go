@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -62,8 +63,9 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 
 	var mtr mtrTypes.Metrics
 	var metricValue string
+	var err error
 
-	if err := easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
+	if err = easyjson.UnmarshalFromReader(c.Request.Body, &mtr); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -79,12 +81,19 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		metricValue = strconv.FormatFloat(*mtr.Value, 'f', -1, 64)
 	}
 
-	err := hdl.store.Add(mtr.MType, mtr.ID, metricValue)
+	err = hdl.store.Add(mtr.MType, mtr.ID, metricValue)
 	if err != nil {
+		c.Error(err)
 		c.Status(http.StatusBadRequest)
 		return
 	}
-	val, _ := hdl.store.Get(mtr.MType, mtr.ID)
+	val, ok := hdl.store.Get(mtr.MType, mtr.ID)
+
+	if !ok {
+		c.Error(fmt.Errorf("metric %s in store not found", mtr.ID))
+		c.Status(http.StatusNotFound)
+		return
+	}
 
 	mtrUpd := mtrTypes.Metrics{
 		ID:    mtr.ID,

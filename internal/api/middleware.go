@@ -51,9 +51,15 @@ func logger() gin.HandlerFunc {
 		ctx.Next()
 
 		status := ctx.Writer.Status()
-		// if status > 399 {
-
-		// }
+		if status > 399 {
+			Log.Error("RES",
+				slog.Int("id", reqId),
+				slog.Int("status", status),
+				slog.Duration("duration", time.Since(start)),
+				slog.String("err", ctx.Errors.String()),
+			)
+			return
+		}
 		Log.Info(
 			"RES",
 			slog.Int("id", reqId),
