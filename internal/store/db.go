@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -97,15 +98,23 @@ func (s *DbStorage) InitLine() error {
 }
 
 func (s *DbStorage) Add(metricType string, metricName string, metricValue string) (err error) {
-	query := `UPDATE metrics SET "` + metricName + `" = $1 WHERE id = 0`
+	query := fmt.Sprintf(`UPDATE metrics SET "%s" = $1 WHERE id = 0`, metricName)
 	log.Println(query)
 	_, err = s.db.ExecContext(context.Background(), query, metricValue)
 	return err
 }
 
 func (s *DbStorage) Get(metricType string, metricName string) (string, bool) {
-	// TODO
-	return "0", true
+	query := fmt.Sprintf(`SELECT "%s" FROM metrics WHERE id = 0`, metricName)
+	log.Println(query)
+	row := s.db.QueryRowContext(context.Background(), query)
+	var metricValue string
+	err := row.Scan(&metricValue)
+	if err != nil {
+		log.Println(err)
+		return "", false
+	}
+	return metricValue, true
 }
 
 func (s *DbStorage) String() string {
