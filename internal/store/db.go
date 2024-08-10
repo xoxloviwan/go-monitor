@@ -10,17 +10,17 @@ import (
 	"github.com/mailru/easyjson"
 )
 
-type DbStorage struct {
+type DBStorage struct {
 	db *sql.DB
 }
 
-func NewDbStorage(db *sql.DB) *DbStorage {
-	return &DbStorage{
+func NewDBStorage(db *sql.DB) *DBStorage {
+	return &DBStorage{
 		db: db,
 	}
 }
 
-func (s *DbStorage) CreateTable() error {
+func (s *DBStorage) CreateTable() error {
 	const createTableQuery = `CREATE TABLE IF NOT EXISTS "metrics" (
 		"id" INTEGER PRIMARY KEY,
 		"Alloc" DOUBLE PRECISION,
@@ -58,7 +58,7 @@ func (s *DbStorage) CreateTable() error {
 	return err
 }
 
-func (s *DbStorage) SetLine(m *MemStorage) error {
+func (s *DBStorage) SetLine(m *MemStorage) error {
 	var err error
 	_, err = s.db.ExecContext(context.Background(), `TRUNCATE metrics`)
 	if err != nil {
@@ -129,7 +129,7 @@ func (s *DbStorage) SetLine(m *MemStorage) error {
 	return err
 }
 
-func (s *DbStorage) GetLine(m *MemStorage) error {
+func (s *DBStorage) GetLine(m *MemStorage) error {
 	query := `SELECT
 		"Alloc",
 		"BuckHashSys",
@@ -265,14 +265,14 @@ func (s *DbStorage) GetLine(m *MemStorage) error {
 	return nil
 }
 
-func (s *DbStorage) Add(metricType string, metricName string, metricValue string) (err error) {
+func (s *DBStorage) Add(metricType string, metricName string, metricValue string) (err error) {
 	query := fmt.Sprintf(`UPDATE metrics SET "%s" = $1 WHERE id = 0`, metricName)
 	log.Println(query)
 	_, err = s.db.ExecContext(context.Background(), query, metricValue)
 	return err
 }
 
-func (s *DbStorage) Get(metricType string, metricName string) (string, bool) {
+func (s *DBStorage) Get(metricType string, metricName string) (string, bool) {
 	query := fmt.Sprintf(`SELECT "%s" FROM metrics WHERE id = 0`, metricName)
 	log.Println(query)
 	row := s.db.QueryRowContext(context.Background(), query)
@@ -285,7 +285,7 @@ func (s *DbStorage) Get(metricType string, metricName string) (string, bool) {
 	return metricValue, true
 }
 
-func (s *DbStorage) String() string {
+func (s *DBStorage) String() string {
 	query := "SELECT * FROM metrics WHERE id = 0"
 	log.Println(query)
 	var err error
@@ -327,7 +327,7 @@ func (s *DbStorage) String() string {
 	return str
 }
 
-func (s *DbStorage) SaveToFile(path string) error {
+func (s *DBStorage) SaveToFile(path string) error {
 	var metrics = MemStorage{
 		Gauge:   make(Gauge),
 		Counter: make(Counter),
@@ -345,7 +345,7 @@ func (s *DbStorage) SaveToFile(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (s *DbStorage) RestoreFromFile(path string) error {
+func (s *DBStorage) RestoreFromFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err

@@ -43,7 +43,7 @@ func RunServer(cfg config.Config) error {
 			}
 			c.Status(http.StatusOK)
 		}
-		dbs := store.NewDbStorage(db)
+		dbs := store.NewDBStorage(db)
 		err = dbs.CreateTable()
 		if err != nil {
 			return fmt.Errorf("create table error: %v", err)
