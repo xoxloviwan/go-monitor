@@ -67,6 +67,11 @@ func RunServer(cfg config.Config) error {
 		}
 	}()
 
+	if cfg.FileStoragePath == "" {
+		err := <-wasError
+		return err
+	}
+
 	// NewTicker бросает panic в случае, если интервал меньше нуля.
 	if cfg.StoreInterval == 0 {
 		for {
