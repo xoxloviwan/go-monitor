@@ -5,7 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
+	pgx "github.com/jackc/pgx/v5"
+	stdlib "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailru/easyjson"
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
@@ -30,6 +34,42 @@ func (s *DBStorage) CreateTable() error {
 		GaugeName),
 	)
 	return err
+}
+
+func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	var conn *sql.Conn
+	conn, err = s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	err = conn.Raw(func(driverConn interface{}) error {
+		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
+		defer conn.Close(ctx)
+
+		batch := &pgx.Batch{}
+		for id, val := range m.Gauge {
+			queryes := fmt.Sprintf("UPDATE metrics SET gauge = @%s WHERE id = @id", id)
+			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
+		}
+		for id, val := range m.Counter {
+			queryes := fmt.Sprintf("UPDATE metrics SET counter = @%s WHERE id = @id", id)
+			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
+		}
+		br := conn.SendBatch(ctx, batch)
+		err = br.Close()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *DBStorage) Add(metricType string, metricName string, metricValue string) (err error) {
@@ -112,5 +152,22 @@ func (s *DBStorage) String() string {
 		return ""
 	}
 	return string(str)
+}
 
+func (s *DBStorage) RestoreFromFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var metrics MemStorage
+	log.Println(string(data))
+	err = easyjson.Unmarshal(data, &metrics)
+	if err != nil {
+		return err
+	}
+	err = s.SetBatch(&metrics)
+	if err != nil {
+		return err
+	}
+	return nil
 }

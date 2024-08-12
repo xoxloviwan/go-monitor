@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -17,7 +16,7 @@ import (
 )
 
 func RunServer(cfg config.Config) error {
-	var s ReaderWriter
+	var s DBStorage
 	var pingHandler gin.HandlerFunc
 
 	var mems Storage = store.NewMemStorage()
@@ -48,10 +47,13 @@ func RunServer(cfg config.Config) error {
 		pingHandler = func(c *gin.Context) {
 			c.Status(http.StatusOK)
 		}
-		if cfg.Restore && cfg.FileStoragePath != "" {
-			RestoreData(mems, cfg.FileStoragePath)
-		}
 		s = mems
+	}
+	if cfg.Restore && cfg.FileStoragePath != "" {
+		err := s.RestoreFromFile(cfg.FileStoragePath)
+		if err != nil {
+			return err
+		}
 	}
 	r := SetupRouter(pingHandler, s)
 
@@ -98,6 +100,24 @@ func RunServer(cfg config.Config) error {
 	}
 }
 
+type Backuper interface {
+	SaveToFile(path string) error
+}
+
+type Restorer interface {
+	RestoreFromFile(path string) error
+}
+
+type DBStorage interface {
+	Restorer
+	ReaderWriter
+}
+
+type Storage interface {
+	Backuper
+	DBStorage
+}
+
 func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
 	handler := NewHandler(dbstore)
 	r := gin.New()
@@ -112,23 +132,6 @@ func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
 	r.GET("/ping", ping)
 
 	return r
-}
-
-type Backuper interface {
-	SaveToFile(path string) error
-	RestoreFromFile(path string) error
-}
-
-type Storage interface {
-	Backuper
-	ReaderWriter
-}
-
-func RestoreData(b Backuper, path string) {
-	err := b.RestoreFromFile(path)
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func BackupData(b Backuper, path string) error {
