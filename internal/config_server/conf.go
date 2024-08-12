@@ -19,7 +19,7 @@ var (
 	storeInterval   = flag.Int("i", storeIntervalDefault, "store interval in seconds")
 	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
-	databaseDSN     = flag.String("d", DatabaseDSNDefault, "database DSN")
+	databaseDSN     = flag.String("d", DatabaseDSNDefault, "database DSN, e.g. postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable")
 )
 
 type Config struct {

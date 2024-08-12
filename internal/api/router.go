@@ -17,17 +17,12 @@ import (
 )
 
 func RunServer(cfg config.Config) error {
-	var s Storage
+	var s ReaderWriter
 	var pingHandler gin.HandlerFunc
 
-	mems := store.NewMemStorage()
+	var mems Storage = store.NewMemStorage()
 
-	if cfg.DatabaseDSN == "" {
-		s = mems
-		pingHandler = func(c *gin.Context) {
-			c.Status(http.StatusOK)
-		}
-	} else {
+	if cfg.DatabaseDSN != "" {
 		db, err := sql.Open("pgx", cfg.DatabaseDSN)
 		if err != nil {
 			return err
@@ -48,16 +43,17 @@ func RunServer(cfg config.Config) error {
 		if err != nil {
 			return fmt.Errorf("create table error: %v", err)
 		}
-		err = dbs.SetLine(mems)
-		if err != nil {
-			return fmt.Errorf("create init line error: %v", err)
-		}
 		s = dbs
+	} else {
+		pingHandler = func(c *gin.Context) {
+			c.Status(http.StatusOK)
+		}
+		if cfg.Restore && cfg.FileStoragePath != "" {
+			RestoreData(mems, cfg.FileStoragePath)
+		}
+		s = mems
 	}
 	r := SetupRouter(pingHandler, s)
-	if cfg.Restore {
-		RestoreData(s, cfg.FileStoragePath)
-	}
 
 	wasError := make(chan error)
 	go func() {
@@ -67,7 +63,7 @@ func RunServer(cfg config.Config) error {
 		}
 	}()
 
-	if cfg.FileStoragePath == "" {
+	if cfg.DatabaseDSN != "" || cfg.FileStoragePath == "" {
 		err := <-wasError
 		return err
 	}
@@ -79,7 +75,7 @@ func RunServer(cfg config.Config) error {
 			case err := <-wasError:
 				return err
 			default:
-				err := BackupData(s, cfg.FileStoragePath)
+				err := BackupData(mems, cfg.FileStoragePath)
 				if err != nil {
 					return err
 				}
@@ -92,7 +88,7 @@ func RunServer(cfg config.Config) error {
 	for {
 		select {
 		case <-backupTicker.C:
-			err := BackupData(s, cfg.FileStoragePath)
+			err := BackupData(mems, cfg.FileStoragePath)
 			if err != nil {
 				return err
 			}
