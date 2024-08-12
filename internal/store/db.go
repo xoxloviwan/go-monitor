@@ -102,6 +102,10 @@ func (s *DBStorage) String() string {
 		}
 		ms = append(ms, m)
 	}
+	if err = rows.Err(); err != nil {
+		log.Println(err)
+		return ""
+	}
 	str, err := easyjson.Marshal(ms)
 	if err != nil {
 		log.Println(err)
