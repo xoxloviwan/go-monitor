@@ -114,28 +114,24 @@ func (s *DBStorage) Add(metricType string, metricName string, metricValue string
 
 func (s *DBStorage) AddMetrics(m *mtr.MetricsList) error {
 
-	metrics := MemStorage{
-		Gauge:   make(map[string]float64),
-		Counter: make(map[string]int64),
-	}
+	metrics := NewMemStorage()
+	metrics.AddMetrics(m)
 
-	for _, v := range *m {
-		if v.MType == GaugeName {
-			metrics.Gauge[v.ID] = *v.Value
-		}
-		if v.MType == CounterName {
-			metrics.Counter[v.ID] = *v.Delta
-		}
-	}
-	log.Printf("%+v\n", metrics)
-	return s.SetBatch(&metrics)
+	log.Printf("AddMetrics %+v\n", metrics)
+	return s.SetBatch(metrics)
 }
 
 func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 
-	query := "SELECT id, gauge, counter FROM metrics where id in ("
+	metricsID := make(map[string]bool)
+
 	for _, v := range *m {
-		query += fmt.Sprintf("'%s',", v.ID)
+		metricsID[v.ID] = true
+	}
+
+	query := "SELECT id, gauge, counter FROM metrics where id in ("
+	for k := range metricsID {
+		query += fmt.Sprintf("'%s',", k)
 	}
 	query = query[:len(query)-1]
 	query += ")"
@@ -147,7 +143,7 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 	}
 	defer rows.Close()
 	log.Println("GetMetrics check 1")
-	m = &mtr.MetricsList{}
+	*m = mtr.MetricsList{}
 	for rows.Next() {
 		var nm mtr.Metrics
 		err := rows.Scan(&nm.ID, &nm.Value, &nm.Delta)
@@ -155,10 +151,13 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 			log.Println(err)
 			return err
 		}
+		if nm.Delta == nil {
+			nm.MType = GaugeName
+		} else {
+			nm.MType = CounterName
+		}
 		*m = append(*m, nm)
-		log.Printf("GetMetrics check 2 %+v %v %v\n", nm, nm.Value, nm.Delta)
 	}
-	log.Printf("GetMetrics check 3 %+v\n", m)
 	if err = rows.Err(); err != nil {
 		log.Println(err)
 		return err
