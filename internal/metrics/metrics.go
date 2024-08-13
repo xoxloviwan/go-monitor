@@ -50,8 +50,8 @@ func GetMetrics(PollCount int64) *MetricsPool {
 	}
 }
 
-func (s *MetricsPool) MakeMessages() []api.Metrics {
-	var msgs []api.Metrics
+func (s *MetricsPool) MakeMessages() api.MetricsList {
+	var msgs api.MetricsList
 	for metricName, metricValue := range s.Gauge {
 		msgs = append(msgs, api.Metrics{
 			ID:    metricName,

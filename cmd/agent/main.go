@@ -15,39 +15,40 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr string, msgs []api.Metrics) (err error) {
+func send(adr string, msgs api.MetricsList) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/update/"
 
-	for _, msg := range msgs {
-		body, err := easyjson.Marshal(&msg)
-		if err != nil {
-			return err
-		}
-		gzbody, err := compressGzip(body)
-		if err != nil {
-			return err
-		}
+	var body []byte
+	body, err = easyjson.Marshal(&msgs)
+	if err != nil {
+		return err
+	}
+	var gzbody []byte
+	gzbody, err = compressGzip(body)
+	if err != nil {
+		return err
+	}
+	var req *http.Request
+	req, err = http.NewRequest("POST", url, bytes.NewBuffer(gzbody))
+	if err != nil {
+		return err
+	}
 
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(gzbody))
-		if err != nil {
-			return err
-		}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("Accept-Encoding", "gzip")
-
-		response, err := cl.Do(req)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(io.Discard, response.Body)
-		defer response.Body.Close()
-		if err != nil {
-			return err
-		}
+	var response *http.Response
+	response, err = cl.Do(req)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(io.Discard, response.Body)
+	defer response.Body.Close()
+	if err != nil {
+		return err
 	}
 	return nil
 }
