@@ -52,14 +52,14 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 
 		batch := &pgx.Batch{}
 		for id, val := range m.Gauge {
-			queryes := fmt.Sprintf("UPDATE metrics SET gauge = @%s WHERE id = @id", id)
+			queryes := "UPDATE metrics SET gauge = @val WHERE id = @id"
 			log.Printf("query: %s |%v %v\n", queryes, id, val)
-			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
+			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
 		for id, val := range m.Counter {
-			queryes := fmt.Sprintf("UPDATE metrics SET counter = @%s WHERE id = @id", id)
+			queryes := "UPDATE metrics SET counter = @val WHERE id = @id"
 			log.Printf("query: %s |%v %v\n", queryes, id, val)
-			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
+			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
 		br := conn.SendBatch(ctx, batch)
 		err = br.Close()
