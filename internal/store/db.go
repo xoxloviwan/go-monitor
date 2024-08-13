@@ -52,16 +52,27 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 
 		batch := &pgx.Batch{}
 		for id, val := range m.Gauge {
-			queryes := "UPDATE metrics SET gauge = @val WHERE id = @id"
+			queryes := "INSERT INTO metrics (id, gauge) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET gauge = @val"
 			log.Printf("query: %s |%v %v\n", queryes, id, val)
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
 		for id, val := range m.Counter {
-			queryes := "UPDATE metrics SET counter = @val WHERE id = @id"
+			queryes := "INSERT INTO metrics (id, counter) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET counter = @val"
 			log.Printf("query: %s |%v %v\n", queryes, id, val)
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
 		br := conn.SendBatch(ctx, batch)
+
+		for i := 0; i < batch.Len(); i++ {
+			ct, err := br.Exec()
+			if err != nil {
+				return err
+			}
+			if ct.RowsAffected() != 1 {
+				return fmt.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
+			}
+		}
+
 		err = br.Close()
 		if err != nil {
 			return err
