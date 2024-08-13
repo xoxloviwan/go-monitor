@@ -53,10 +53,12 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 		batch := &pgx.Batch{}
 		for id, val := range m.Gauge {
 			queryes := fmt.Sprintf("UPDATE metrics SET gauge = @%s WHERE id = @id", id)
+			log.Printf("query: %s |%v %v\n", queryes, id, val)
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
 		}
 		for id, val := range m.Counter {
 			queryes := fmt.Sprintf("UPDATE metrics SET counter = @%s WHERE id = @id", id)
+			log.Printf("query: %s |%v %v\n", queryes, id, val)
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, id: val})
 		}
 		br := conn.SendBatch(ctx, batch)
@@ -137,11 +139,12 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 	for rows.Next() {
 		var nm mtr.Metrics
 		err := rows.Scan(&nm.ID, &nm.Value, &nm.Delta)
-		*m = append(*m, nm)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
+		*m = append(*m, nm)
+		log.Printf("%+v %v %v\n", nm, nm.Value, nm.Delta)
 	}
 	if err = rows.Err(); err != nil {
 		log.Println(err)
