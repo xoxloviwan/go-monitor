@@ -52,7 +52,7 @@ func RunServer(cfg config.Config) error {
 	if cfg.Restore && cfg.FileStoragePath != "" {
 		err := s.RestoreFromFile(cfg.FileStoragePath)
 		if err != nil {
-			return err
+			slog.Warn("Restore failed", slog.Any("error", err.Error()))
 		}
 	}
 	r := SetupRouter(pingHandler, s)
