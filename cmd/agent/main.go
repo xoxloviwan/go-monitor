@@ -18,7 +18,7 @@ import (
 func send(adr string, msgs api.MetricsList) (err error) {
 	cl := &http.Client{}
 
-	url := "http://" + adr + "/update/"
+	url := "http://" + adr + "/updates/"
 
 	var body []byte
 	body, err = easyjson.Marshal(&msgs)

@@ -121,6 +121,7 @@ func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
 	r.Use(compressGzip())
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)
+	r.POST("/updates/", handler.updateJSON)
 	r.GET("/value/:metricType/:metricName", handler.value)
 	r.POST("/value/", handler.valueJSON)
 	r.GET("/", handler.list)
