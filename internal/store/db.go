@@ -114,6 +114,7 @@ func (s *DBStorage) AddMetrics(m *mtr.MetricsList) error {
 			metrics.Counter[v.ID] = *v.Delta
 		}
 	}
+	log.Printf("%+v\n", metrics)
 	return s.SetBatch(&metrics)
 }
 
