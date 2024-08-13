@@ -135,6 +135,7 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 		return err
 	}
 	defer rows.Close()
+	log.Println("GetMetrics check 1")
 	m = &mtr.MetricsList{}
 	for rows.Next() {
 		var nm mtr.Metrics
@@ -144,8 +145,9 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 			return err
 		}
 		*m = append(*m, nm)
-		log.Printf("%+v %v %v\n", nm, nm.Value, nm.Delta)
+		log.Printf("GetMetrics check 2 %+v %v %v\n", nm, nm.Value, nm.Delta)
 	}
+	log.Printf("GetMetrics check 3 %+v\n", m)
 	if err = rows.Err(); err != nil {
 		log.Println(err)
 		return err
