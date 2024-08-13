@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/mailru/easyjson"
+	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
 const CounterName = "counter"
@@ -47,6 +48,32 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 		return errors.New("unknown metric type")
 	}
 	return err
+}
+
+func (s *MemStorage) AddMetrics(m *mtr.MetricsList) error {
+
+	for _, v := range *m {
+		if v.MType == GaugeName {
+			s.Gauge[v.ID] = *v.Value
+		}
+		if v.MType == CounterName {
+			s.Counter[v.ID] = *v.Delta + s.Counter[v.ID]
+		}
+	}
+	return nil
+}
+
+func (s *MemStorage) GetMetrics(m *mtr.MetricsList) error {
+
+	for _, v := range *m {
+		if v.MType == GaugeName {
+			*v.Value = s.Gauge[v.ID]
+		}
+		if v.MType == CounterName {
+			*v.Delta = s.Counter[v.ID]
+		}
+	}
+	return nil
 }
 
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {

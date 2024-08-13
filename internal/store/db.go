@@ -99,6 +99,56 @@ func (s *DBStorage) Add(metricType string, metricName string, metricValue string
 	return err
 }
 
+func (s *DBStorage) AddMetrics(m *mtr.MetricsList) error {
+
+	metrics := MemStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
+	}
+
+	for _, v := range *m {
+		if v.MType == GaugeName {
+			metrics.Gauge[v.ID] = *v.Value
+		}
+		if v.MType == CounterName {
+			metrics.Counter[v.ID] = *v.Delta
+		}
+	}
+	return s.SetBatch(&metrics)
+}
+
+func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
+
+	query := "SELECT id, gauge, counter FROM metrics where id in ("
+	for _, v := range *m {
+		query += fmt.Sprintf("'%s',", v.ID)
+	}
+	query = query[:len(query)-1]
+	query += ")"
+	log.Println(query)
+	rows, err := s.db.QueryContext(context.Background(), query)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	defer rows.Close()
+	m = &mtr.MetricsList{}
+	for rows.Next() {
+		var nm mtr.Metrics
+		err := rows.Scan(&nm.ID, &nm.Value, &nm.Delta)
+		*m = append(*m, nm)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+	}
+	if err = rows.Err(); err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
 func (s *DBStorage) Get(metricType string, metricName string) (string, bool) {
 	var colName = GaugeName
 	if metricType == CounterName {

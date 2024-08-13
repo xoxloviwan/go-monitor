@@ -104,12 +104,8 @@ type Backuper interface {
 	SaveToFile(path string) error
 }
 
-type Restorer interface {
-	RestoreFromFile(path string) error
-}
-
 type DBStorage interface {
-	Restorer
+	RestoreFromFile(path string) error
 	ReaderWriter
 }
 
