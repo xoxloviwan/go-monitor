@@ -65,13 +65,37 @@ func (s *MemStorage) AddMetrics(m *mtr.MetricsList) error {
 
 func (s *MemStorage) GetMetrics(m *mtr.MetricsList) error {
 
+	// Get uniq IDs
+	metricsID := make(map[string]bool)
 	for _, v := range *m {
 		if v.MType == GaugeName {
-			*v.Value = s.Gauge[v.ID]
+			metricsID[v.ID] = true
 		}
 		if v.MType == CounterName {
-			*v.Delta = s.Counter[v.ID]
+			metricsID[v.ID] = false
 		}
+	}
+
+	*m = mtr.MetricsList{}
+
+	for id := range metricsID {
+		var metric mtr.Metrics
+		if metricsID[id] {
+			metric = mtr.Metrics{
+				ID:    id,
+				MType: GaugeName,
+				Value: new(float64),
+			}
+			*metric.Value = s.Gauge[id]
+		} else {
+			metric = mtr.Metrics{
+				ID:    id,
+				MType: CounterName,
+				Delta: new(int64),
+			}
+			*metric.Delta = s.Counter[id]
+		}
+		*m = append(*m, metric)
 	}
 	return nil
 }

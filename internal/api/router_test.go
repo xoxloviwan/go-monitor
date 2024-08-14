@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp"
 	mt "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
@@ -33,13 +34,14 @@ type testcasesWithBody []struct {
 	wantBody string
 }
 
-func ping(c *gin.Context) {
-	c.Status(http.StatusOK)
+func setup() *gin.Engine {
+	ping := func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	}
+	return SetupRouter(ping, store.NewMemStorage())
 }
 
-var router = SetupRouter(ping, store.NewMemStorage())
-
-func Test_update(t *testing.T) {
+func Test_update_value(t *testing.T) {
 
 	tests := testcases{
 		{
@@ -87,36 +89,6 @@ func Test_update(t *testing.T) {
 				contentType: "plain/text",
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.url, nil)
-			w := httptest.NewRecorder()
-			urlSpl := strings.Split(tt.url, "/")
-			if len(urlSpl) > 2 {
-				req.SetPathValue("metricType", urlSpl[2])
-			}
-			if len(urlSpl) > 3 {
-				req.SetPathValue("metricName", urlSpl[3])
-			}
-			if len(urlSpl) > 4 {
-				req.SetPathValue("metricValue", urlSpl[4])
-			}
-
-			router.ServeHTTP(w, req)
-
-			res := w.Result()
-			defer res.Body.Close()
-
-			if tt.want.code != res.StatusCode {
-				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
-			}
-		})
-	}
-}
-
-func Test_value(t *testing.T) {
-	tests := testcases{
 		{
 			name:   "service_get_200_gauge",
 			url:    "/value/gauge/someMetric",
@@ -154,6 +126,7 @@ func Test_value(t *testing.T) {
 			},
 		},
 	}
+	router := setup()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.url, nil)
@@ -164,6 +137,9 @@ func Test_value(t *testing.T) {
 			}
 			if len(urlSpl) > 3 {
 				req.SetPathValue("metricName", urlSpl[3])
+			}
+			if len(urlSpl) > 4 {
+				req.SetPathValue("metricValue", urlSpl[4])
 			}
 
 			router.ServeHTTP(w, req)
@@ -181,6 +157,8 @@ func Test_value(t *testing.T) {
 func Test_list(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
+
+	router := setup()
 	router.ServeHTTP(w, req)
 
 	res := w.Result()
@@ -191,7 +169,7 @@ func Test_list(t *testing.T) {
 	}
 }
 
-func Test_updateJSON(t *testing.T) {
+func Test_update_valueJSON(t *testing.T) {
 
 	tests := testcasesWithBody{
 		{
@@ -218,56 +196,21 @@ func Test_updateJSON(t *testing.T) {
 				},
 			},
 			reqBody:  `{"id": "someMetric", "type": "counter", "delta": 23}`,
-			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_200_counter
+			wantBody: `{"id": "someMetric", "type": "counter", "delta": 23}`,
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			var err error
-
-			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
-			w := httptest.NewRecorder()
-
-			req.Header = map[string][]string{
-				"Content-Type": {"application/json"},
-			}
-
-			router.ServeHTTP(w, req)
-
-			res := w.Result()
-			defer res.Body.Close()
-
-			if tt.want.code != res.StatusCode {
-				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
-			}
-			var bodyBytes []byte
-			bodyBytes, err = io.ReadAll(res.Body)
-			if err != nil {
-				t.Error(err)
-			}
-			var cmp1 = mt.Metrics{}
-			var cmp2 = mt.Metrics{}
-			if err = cmp1.UnmarshalJSON(bodyBytes); err != nil {
-				t.Error(err)
-			}
-			if err = cmp2.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
-				t.Error(err)
-			}
-
-			if cmp1.ID != cmp2.ID || cmp1.MType != cmp2.MType ||
-				((cmp1.Delta != nil && cmp2.Delta != nil) && *cmp1.Delta != *cmp2.Delta) ||
-				((cmp1.Value != nil && cmp2.Value != nil) && *cmp1.Value != *cmp2.Value) {
-				t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
-			}
-		})
-	}
-}
-
-func Test_valueJSON(t *testing.T) {
-
-	tests := testcasesWithBody{
+		{
+			testcase: testcase{
+				name:   "service_post_update_counter_json_200",
+				url:    "/update/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "counter", "delta": 23}`,
+			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_update_counter_json_200
+		},
 		{
 			testcase: testcase{
 				name:   "service_post_value_gauge_json_200",
@@ -292,10 +235,11 @@ func Test_valueJSON(t *testing.T) {
 				},
 			},
 			reqBody:  `{"id": "someMetric", "type": "counter"}`,
-			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_200_counter
+			wantBody: `{"id": "someMetric", "type": "counter", "delta": 46}`, // сохранилось значение от теста service_post_update_counter_json_200
 		},
 	}
 
+	router := setup()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -321,19 +265,81 @@ func Test_valueJSON(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			var cmp1 = mt.Metrics{}
-			var cmp2 = mt.Metrics{}
-			if err = cmp1.UnmarshalJSON(bodyBytes); err != nil {
+			var got = mt.Metrics{}
+			var want = mt.Metrics{}
+			if err = got.UnmarshalJSON(bodyBytes); err != nil {
 				t.Error(err)
 			}
-			if err = cmp2.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
+			if err = want.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
 				t.Error(err)
 			}
 
-			if cmp1.ID != cmp2.ID || cmp1.MType != cmp2.MType ||
-				((cmp1.Delta != nil && cmp2.Delta != nil) && *cmp1.Delta != *cmp2.Delta) ||
-				((cmp1.Value != nil && cmp2.Value != nil) && *cmp1.Value != *cmp2.Value) {
-				t.Error("Body mismatch. want:", tt.wantBody, "got:", string(bodyBytes))
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("Body mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_updatesJSON(t *testing.T) {
+
+	tests := testcasesWithBody{
+		{
+			testcase: testcase{
+				name:   "service_post_updates_counter_json_200",
+				url:    "/updates/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody: `[
+				{"id":"someMetric","type":"counter","delta":0},
+				{"id":"someMetric","type":"counter","delta":10},
+				{"id":"someMetric","type":"counter","delta":20}
+			]`,
+			wantBody: `[{"id": "someMetric", "type": "counter", "delta": 30}]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var err error
+
+			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
+			w := httptest.NewRecorder()
+
+			req.Header = map[string][]string{
+				"Content-Type": {"application/json"},
+			}
+
+			router := setup()
+			router.ServeHTTP(w, req)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			if tt.want.code != res.StatusCode {
+				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
+			var bodyBytes []byte
+			bodyBytes, err = io.ReadAll(res.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			var got = mt.MetricsList{}
+			var want = mt.MetricsList{}
+			if err = got.UnmarshalJSON(bodyBytes); err != nil {
+				t.Error(err)
+			}
+			if err = want.UnmarshalJSON([]byte(tt.wantBody)); err != nil {
+				t.Error(err)
+			}
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("Body mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
