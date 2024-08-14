@@ -3,12 +3,15 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	pgx "github.com/jackc/pgx/v5"
+	pgconn "github.com/jackc/pgx/v5/pgconn"
 	stdlib "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailru/easyjson"
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
@@ -46,7 +49,7 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 	if err != nil {
 		return err
 	}
-	err = conn.Raw(func(driverConn interface{}) error {
+	return conn.Raw(func(driverConn interface{}) error {
 		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
 		defer conn.Close(ctx)
 
@@ -63,26 +66,22 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 		}
 		br := conn.SendBatch(ctx, batch)
 
+		var errs []error
+
 		for i := 0; i < batch.Len(); i++ {
 			ct, err := br.Exec()
 			if err != nil {
-				return err
+				errs = append(errs, err)
 			}
 			if ct.RowsAffected() != 1 {
-				return fmt.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
+				errs = append(errs, fmt.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1))
 			}
 		}
 
 		err = br.Close()
-		if err != nil {
-			return err
-		}
-		return nil
+		errs = append(errs, err)
+		return errors.Join(errs...)
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *DBStorage) Add(metricType string, metricName string, metricValue string) (err error) {
@@ -118,9 +117,23 @@ func (s *DBStorage) AddMetrics(m *mtr.MetricsList) error {
 	metrics.AddMetrics(m)
 
 	log.Printf("AddMetrics %+v\n", metrics)
-	return s.SetBatch(metrics)
+
+	retry := 0
+	err := s.SetBatch(metrics)
+	for needRetry(err) && retry < 3 {
+		after := (retry+1)*2 - 1
+		log.Printf("%s Retry %d ...", err.Error(), retry+1)
+		time.Sleep(time.Duration(after) * time.Second)
+		err = s.SetBatch(metrics)
+		retry++
+	}
+	return err
 }
 
+func needRetry(err error) bool {
+	var e *pgconn.PgError
+	return errors.As(err, &e) && pgerrcode.IsConnectionException(e.Code)
+}
 func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 
 	metricsID := make(map[string]bool)
