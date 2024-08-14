@@ -57,7 +57,7 @@ func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
 		for id, val := range m.Counter {
-			queryes := "INSERT INTO metrics (id, counter) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET counter += @val"
+			queryes := "INSERT INTO metrics (id, counter) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET counter = metrics.counter + @val"
 			log.Printf("query: %s |%v %v\n", queryes, id, val)
 			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
 		}
