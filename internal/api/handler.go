@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -21,13 +22,13 @@ type Handler struct {
 
 type Reader interface {
 	Get(metricType string, metricName string) (string, bool)
-	GetMetrics(m *mtrTypes.MetricsList) error
+	GetMetrics(ctx context.Context, m *mtrTypes.MetricsList) error
 	String() string
 }
 
 type Writer interface {
 	Add(metricType string, metricName string, metricValue string) error
-	AddMetrics(m *mtrTypes.MetricsList) error
+	AddMetrics(ctx context.Context, m *mtrTypes.MetricsList) error
 }
 
 type ReaderWriter interface {
@@ -66,6 +67,8 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		c.Status(http.StatusBadRequest)
 		return
 	}
+	ctx := c.Request.Context()
+	defer ctx.Done()
 
 	var mtr mtrTypes.Metrics
 	var mtrList mtrTypes.MetricsList
@@ -85,13 +88,19 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		mtrList = mtrTypes.MetricsList{mtr}
 	}
 
-	err = hdl.store.AddMetrics(&mtrList)
+	err = hdl.store.AddMetrics(ctx, &mtrList)
 	if err != nil {
 		c.Error(err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	err = hdl.store.GetMetrics(&mtrList)
+	err = ctx.Err()
+	if err != nil {
+		c.Error(err)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	err = hdl.store.GetMetrics(ctx, &mtrList)
 	if err != nil {
 		c.Error(err)
 		c.Status(http.StatusInternalServerError)
