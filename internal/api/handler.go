@@ -54,6 +54,7 @@ func (hdl *Handler) update(c *gin.Context) {
 
 	err := hdl.store.Add(metricType, metricName, metricValue)
 	if err != nil {
+		c.Error(err)
 		c.Status(http.StatusBadRequest)
 	} else {
 		c.Status(http.StatusOK)
