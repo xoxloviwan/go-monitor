@@ -14,16 +14,21 @@ import (
 )
 
 var Log *slog.Logger
+var lvl *slog.LevelVar
 
 var reqID = 0
 
 func init() {
-	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	lvl = new(slog.LevelVar)
+	lvl.Set(slog.LevelDebug)
+	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 	slog.SetDefault(Log)
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
-func logger() gin.HandlerFunc {
+func logger(lev slog.Level) gin.HandlerFunc {
+	lvl.Set(lev)
 	return func(ctx *gin.Context) {
 		reqID++
 

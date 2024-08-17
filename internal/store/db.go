@@ -39,9 +39,9 @@ func (s *DBStorage) CreateTable() error {
 	return err
 }
 
-func (s *DBStorage) SetBatch(m *MemStorage) (err error) {
+func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 120*time.Second)
 	defer cancel()
 
 	var conn *sql.Conn
@@ -111,20 +111,20 @@ func (s *DBStorage) Add(metricType string, metricName string, metricValue string
 	return err
 }
 
-func (s *DBStorage) AddMetrics(m *mtr.MetricsList) error {
+func (s *DBStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 
 	metrics := NewMemStorage()
-	metrics.AddMetrics(m)
+	metrics.AddMetrics(ctx, m)
 
 	log.Printf("AddMetrics %+v\n", metrics)
 
 	retry := 0
-	err := s.SetBatch(metrics)
+	err := s.SetBatch(ctx, metrics)
 	for needRetry(err) && retry < 3 {
 		after := (retry+1)*2 - 1
 		log.Printf("%s Retry %d ...", err.Error(), retry+1)
 		time.Sleep(time.Duration(after) * time.Second)
-		err = s.SetBatch(metrics)
+		err = s.SetBatch(ctx, metrics)
 		retry++
 	}
 	return err
@@ -134,7 +134,7 @@ func needRetry(err error) bool {
 	var e *pgconn.PgError
 	return errors.As(err, &e) && pgerrcode.IsConnectionException(e.Code)
 }
-func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
+func (s *DBStorage) GetMetrics(ctx context.Context, m *mtr.MetricsList) error {
 
 	metricsID := make(map[string]bool)
 
@@ -149,7 +149,7 @@ func (s *DBStorage) GetMetrics(m *mtr.MetricsList) error {
 	query = query[:len(query)-1]
 	query += ")"
 	log.Println(query)
-	rows, err := s.db.QueryContext(context.Background(), query)
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -244,7 +244,7 @@ func (s *DBStorage) RestoreFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	err = s.SetBatch(&metrics)
+	err = s.SetBatch(context.Background(), &metrics)
 	if err != nil {
 		return err
 	}

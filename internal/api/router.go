@@ -55,7 +55,7 @@ func RunServer(cfg config.Config) error {
 			slog.Warn("Restore failed", slog.Any("error", err.Error()))
 		}
 	}
-	r := SetupRouter(pingHandler, s)
+	r := SetupRouter(pingHandler, s, slog.LevelDebug)
 
 	wasError := make(chan error)
 	go func() {
@@ -114,10 +114,10 @@ type Storage interface {
 	DBStorage
 }
 
-func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter) *gin.Engine {
+func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level) *gin.Engine {
 	handler := NewHandler(dbstore)
 	r := gin.New()
-	r.Use(logger())
+	r.Use(logger(logLevel))
 	r.Use(compressGzip())
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)

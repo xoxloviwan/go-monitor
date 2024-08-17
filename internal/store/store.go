@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strconv"
@@ -50,7 +51,11 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 	return err
 }
 
-func (s *MemStorage) AddMetrics(m *mtr.MetricsList) error {
+func (s *MemStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
 
 	for _, v := range *m {
 		if v.MType == GaugeName {
@@ -63,7 +68,11 @@ func (s *MemStorage) AddMetrics(m *mtr.MetricsList) error {
 	return nil
 }
 
-func (s *MemStorage) GetMetrics(m *mtr.MetricsList) error {
+func (s *MemStorage) GetMetrics(ctx context.Context, m *mtr.MetricsList) error {
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
 
 	// Get uniq IDs
 	metricsID := make(map[string]bool)
