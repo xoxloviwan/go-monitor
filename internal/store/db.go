@@ -31,7 +31,7 @@ func (s *DBStorage) CreateTable() error {
 	var err error
 	_, err = s.db.ExecContext(context.Background(), fmt.Sprintf(`CREATE TABLE IF NOT EXISTS metrics (
 			id TEXT PRIMARY KEY,
-			%s INTEGER,
+			%s BIGINT,
 			%s DOUBLE PRECISION)`,
 		CounterName,
 		GaugeName),
