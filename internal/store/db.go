@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -116,16 +117,19 @@ func (s *DBStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	metrics := NewMemStorage()
 	metrics.AddMetrics(ctx, m)
 
-	log.Printf("AddMetrics %+v\n", metrics)
-
 	retry := 0
 	err := s.SetBatch(ctx, metrics)
 	for needRetry(err) && retry < 3 {
-		after := (retry+1)*2 - 1
-		log.Printf("%s Retry %d ...", err.Error(), retry+1)
-		time.Sleep(time.Duration(after) * time.Second)
-		err = s.SetBatch(ctx, metrics)
-		retry++
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			after := (retry+1)*2 - 1
+			slog.Error(fmt.Sprintf("%s Retry %d ...", err.Error(), retry+1))
+			time.Sleep(time.Duration(after) * time.Second)
+			err = s.SetBatch(ctx, metrics)
+			retry++
+		}
 	}
 	return err
 }
