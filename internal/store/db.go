@@ -69,6 +69,14 @@ func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) 
 
 		var errs []error
 
+		defer func() error {
+			err = br.Close()
+			if err != nil {
+				errs = append(errs, err)
+			}
+			return errors.Join(errs...)
+		}()
+
 		for i := 0; i < batch.Len(); i++ {
 			ct, err := br.Exec()
 			if err != nil {
@@ -79,8 +87,6 @@ func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) 
 			}
 		}
 
-		err = br.Close()
-		errs = append(errs, err)
 		return errors.Join(errs...)
 	})
 }

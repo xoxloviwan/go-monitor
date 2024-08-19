@@ -44,6 +44,9 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	retry := 0
 	response, err = cl.Do(req)
 	for err != nil && retry < 3 {
+		if response != nil {
+			response.Body.Close()
+		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
 		log.Printf("%s Retry %d ...", err.Error(), retry+1)
@@ -53,8 +56,15 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	if err != nil {
 		return err
 	}
+
+	defer func() error {
+		if err = response.Body.Close(); err != nil {
+			return fmt.Errorf("could not close response body: %v", err)
+		}
+		return nil
+	}()
+
 	_, err = io.Copy(io.Discard, response.Body)
-	defer response.Body.Close()
 	if err != nil {
 		return err
 	}
