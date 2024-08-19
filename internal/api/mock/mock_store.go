@@ -79,11 +79,12 @@ func (mr *MockReaderWriterMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call
 }
 
 // GetMetrics mocks base method.
-func (m *MockReaderWriter) GetMetrics(arg0 context.Context, arg1 *metrictypes.MetricsList) error {
+func (m *MockReaderWriter) GetMetrics(arg0 context.Context, arg1 metrictypes.MetricsList) (metrictypes.MetricsList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMetrics", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(metrictypes.MetricsList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetMetrics indicates an expected call of GetMetrics.

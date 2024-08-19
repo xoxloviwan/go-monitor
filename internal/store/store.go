@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -68,45 +69,45 @@ func (s *MemStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	return nil
 }
 
-func (s *MemStorage) GetMetrics(ctx context.Context, m *mtr.MetricsList) error {
-	err := ctx.Err()
-	if err != nil {
-		return err
-	}
+func (s *MemStorage) GetMetrics(ctx context.Context, m mtr.MetricsList) (mtr.MetricsList, error) {
 
-	// Get uniq IDs
-	metricsID := make(map[string]bool)
-	for _, v := range *m {
+	uniqID := make(map[string]bool)
+	for _, v := range m {
 		if v.MType == GaugeName {
-			metricsID[v.ID] = true
+			uniqID[v.ID] = true
 		}
 		if v.MType == CounterName {
-			metricsID[v.ID] = false
+			uniqID[v.ID] = false
 		}
 	}
 
-	*m = mtr.MetricsList{}
+	metrics := make(mtr.MetricsList, 0, len(m))
 
-	for id := range metricsID {
-		var metric mtr.Metrics
-		if metricsID[id] {
-			metric = mtr.Metrics{
-				ID:    id,
-				MType: GaugeName,
-				Value: new(float64),
+	for id := range uniqID {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context canceled during processing: %w", ctx.Err())
+		default:
+			var metric mtr.Metrics
+			if uniqID[id] {
+				metric = mtr.Metrics{
+					ID:    id,
+					MType: GaugeName,
+					Value: new(float64),
+				}
+				*metric.Value = s.Gauge[id]
+			} else {
+				metric = mtr.Metrics{
+					ID:    id,
+					MType: CounterName,
+					Delta: new(int64),
+				}
+				*metric.Delta = s.Counter[id]
 			}
-			*metric.Value = s.Gauge[id]
-		} else {
-			metric = mtr.Metrics{
-				ID:    id,
-				MType: CounterName,
-				Delta: new(int64),
-			}
-			*metric.Delta = s.Counter[id]
+			metrics = append(metrics, metric)
 		}
-		*m = append(*m, metric)
 	}
-	return nil
+	return metrics, nil
 }
 
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {

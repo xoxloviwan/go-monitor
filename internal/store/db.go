@@ -134,11 +134,11 @@ func needRetry(err error) bool {
 	var e *pgconn.PgError
 	return errors.As(err, &e) && pgerrcode.IsConnectionException(e.Code)
 }
-func (s *DBStorage) GetMetrics(ctx context.Context, m *mtr.MetricsList) error {
+func (s *DBStorage) GetMetrics(ctx context.Context, metricsList mtr.MetricsList) (mtr.MetricsList, error) {
 
 	metricsID := make(map[string]bool)
 
-	for _, v := range *m {
+	for _, v := range metricsList {
 		metricsID[v.ID] = true
 	}
 
@@ -152,30 +152,30 @@ func (s *DBStorage) GetMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 	log.Println("GetMetrics check 1")
-	*m = mtr.MetricsList{}
+	metricsListWithValues := mtr.MetricsList{}
 	for rows.Next() {
 		var nm mtr.Metrics
 		err := rows.Scan(&nm.ID, &nm.Value, &nm.Delta)
 		if err != nil {
 			log.Println(err)
-			return err
+			return nil, err
 		}
 		if nm.Delta == nil {
 			nm.MType = GaugeName
 		} else {
 			nm.MType = CounterName
 		}
-		*m = append(*m, nm)
+		metricsListWithValues = append(metricsListWithValues, nm)
 	}
 	if err = rows.Err(); err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
-	return nil
+	return metricsListWithValues, nil
 }
 
 func (s *DBStorage) Get(metricType string, metricName string) (string, bool) {

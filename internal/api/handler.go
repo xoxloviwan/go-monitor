@@ -22,7 +22,7 @@ type Handler struct {
 
 type Reader interface {
 	Get(metricType string, metricName string) (string, bool)
-	GetMetrics(ctx context.Context, m *mtrTypes.MetricsList) error
+	GetMetrics(ctx context.Context, metricList mtrTypes.MetricsList) (mtrTypes.MetricsList, error)
 	String() string
 }
 
@@ -101,20 +101,21 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		c.Status(http.StatusBadRequest)
 		return
 	}
-	err = hdl.store.GetMetrics(ctx, &mtrList)
+	var mtrListWithValues mtrTypes.MetricsList
+	mtrListWithValues, err = hdl.store.GetMetrics(ctx, mtrList)
 	if err != nil {
 		c.Error(err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("%+v\n", mtrList)
+	log.Printf("%+v\n", mtrListWithValues)
 	c.Writer.Header().Set("Content-Type", "application/json")
 	if mtr.ID != "" {
 		mtrUpd := mtrTypes.Metrics{
-			ID:    mtrList[0].ID,
-			MType: mtrList[0].MType,
-			Value: mtrList[0].Value,
-			Delta: mtrList[0].Delta,
+			ID:    mtrListWithValues[0].ID,
+			MType: mtrListWithValues[0].MType,
+			Value: mtrListWithValues[0].Value,
+			Delta: mtrListWithValues[0].Delta,
 		}
 		_, err = easyjson.MarshalToWriter(&mtrUpd, c.Writer)
 		if err != nil {
@@ -125,7 +126,7 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
-	_, err = easyjson.MarshalToWriter(&mtrList, c.Writer)
+	_, err = easyjson.MarshalToWriter(&mtrListWithValues, c.Writer)
 	if err != nil {
 		c.Error(err)
 		c.Status(http.StatusInternalServerError)

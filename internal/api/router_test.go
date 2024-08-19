@@ -262,16 +262,16 @@ func Test_updateJSON(t *testing.T) {
 			gotInputList := &mt.MetricsList{gotInput}
 			m.EXPECT().AddMetrics(gomock.Any(), gotInputList).Return(nil).Times(1)
 
-			gotOutputList := &mt.MetricsList{gotInput}
-			m.EXPECT().GetMetrics(gomock.Any(), gotOutputList).DoAndReturn(func(ctx context.Context, gotOutputList *mt.MetricsList) error {
-				wantOutputList := *gotOutputList
+			gotOutputList := mt.MetricsList{gotInput}
+			m.EXPECT().GetMetrics(gomock.Any(), gotOutputList).DoAndReturn(func(ctx context.Context, gotOutputList mt.MetricsList) (mt.MetricsList, error) {
+				wantOutputList := gotOutputList
 				if wantOutputList[0].MType == "counter" {
 					val := tt.lastCounterValue
 					val += *wantOutputList[0].Delta
 					wantOutputList[0].Delta = new(int64)
 					wantOutputList[0].Delta = &val
 				}
-				return nil
+				return wantOutputList, nil
 			}).Times(1)
 
 			router.ServeHTTP(w, req)
@@ -430,15 +430,15 @@ func Test_updatesJSON(t *testing.T) {
 
 			router, m := setup(t)
 
-			gotInputList := &mt.MetricsList{}
+			gotInputList := mt.MetricsList{}
 			if err = gotInputList.UnmarshalJSON([]byte(tt.reqBody)); err != nil {
 				t.Error(err)
 			}
 
-			m.EXPECT().AddMetrics(gomock.Any(), gotInputList).Return(nil).Times(1)
+			m.EXPECT().AddMetrics(gomock.Any(), &gotInputList).Return(nil).Times(1)
 
-			m.EXPECT().GetMetrics(gomock.Any(), gotInputList).DoAndReturn(func(ctx context.Context, gotOutputList *mt.MetricsList) error {
-				*gotOutputList = mt.MetricsList{}
+			m.EXPECT().GetMetrics(gomock.Any(), gotInputList).DoAndReturn(func(ctx context.Context, gotOutputList mt.MetricsList) (mt.MetricsList, error) {
+				wantOutputList := mt.MetricsList{}
 				res := mt.Metrics{
 					ID:    "someMetric",
 					MType: "counter",
@@ -446,8 +446,8 @@ func Test_updatesJSON(t *testing.T) {
 				var val int64 = 30
 				res.Delta = new(int64)
 				res.Delta = &val
-				*gotOutputList = append(*gotOutputList, res)
-				return nil
+				wantOutputList = append(wantOutputList, res)
+				return wantOutputList, nil
 			}).Times(1)
 
 			router.ServeHTTP(w, req)

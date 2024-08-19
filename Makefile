@@ -8,3 +8,6 @@ buildagent:
 
 test:
 	go test ./internal/api/.
+
+mock:
+	mockgen -destination ./internal/api/mock/mock_store.go github.com/xoxloviwan/go-monitor/internal/api ReaderWriter
