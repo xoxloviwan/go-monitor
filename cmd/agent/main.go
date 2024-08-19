@@ -41,7 +41,15 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	req.Header.Set("Accept-Encoding", "gzip")
 
 	var response *http.Response
+	retry := 0
 	response, err = cl.Do(req)
+	for err != nil && retry < 3 {
+		after := (retry+1)*2 - 1
+		time.Sleep(time.Duration(after) * time.Second)
+		log.Printf("%s Retry %d ...", err.Error(), retry+1)
+		response, err = cl.Do(req)
+		retry++
+	}
 	if err != nil {
 		return err
 	}
