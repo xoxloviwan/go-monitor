@@ -59,7 +59,8 @@ func send(adr string, msgs api.MetricsList) (err error) {
 
 	defer func() error {
 		if err = response.Body.Close(); err != nil {
-			return fmt.Errorf("could not close response body: %v", err)
+			err = fmt.Errorf("could not close response body: %w", err)
+			return err
 		}
 		return nil
 	}()
