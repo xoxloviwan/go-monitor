@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -57,12 +58,11 @@ func send(adr string, msgs api.MetricsList) (err error) {
 		return err
 	}
 
-	defer func() error {
-		if err = response.Body.Close(); err != nil {
-			err = fmt.Errorf("could not close response body: %w", err)
-			return err
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			closeErr = fmt.Errorf("could not close response body: %w", closeErr)
+			err = errors.Join(err, closeErr)
 		}
-		return nil
 	}()
 
 	_, err = io.Copy(io.Discard, response.Body)
