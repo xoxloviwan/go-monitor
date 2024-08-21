@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,44 +11,63 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson"
-	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
+	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr *string, msgs []api.Metrics) (err error) {
+func send(adr string, msgs api.MetricsList) (err error) {
 	cl := &http.Client{}
 
-	url := "http://" + *adr + "/update/"
+	url := "http://" + adr + "/updates/"
 
-	for _, msg := range msgs {
-		body, err := easyjson.Marshal(&msg)
-		if err != nil {
-			return err
-		}
-		gzbody, err := compressGzip(body)
-		if err != nil {
-			return err
-		}
+	var body []byte
+	body, err = easyjson.Marshal(&msgs)
+	if err != nil {
+		return err
+	}
+	var gzbody []byte
+	gzbody, err = compressGzip(body)
+	if err != nil {
+		return err
+	}
+	var req *http.Request
+	req, err = http.NewRequest("POST", url, bytes.NewBuffer(gzbody))
+	if err != nil {
+		return err
+	}
 
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(gzbody))
-		if err != nil {
-			return err
-		}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("Accept-Encoding", "gzip")
+	var response *http.Response
+	retry := 0
+	response, err = cl.Do(req)
+	for err != nil && retry < 3 {
+		if response != nil {
+			response.Body.Close()
+		}
+		after := (retry+1)*2 - 1
+		time.Sleep(time.Duration(after) * time.Second)
+		log.Printf("%s Retry %d ...", err.Error(), retry+1)
+		response, err = cl.Do(req)
+		retry++
+	}
+	if err != nil {
+		return err
+	}
 
-		response, err := cl.Do(req)
-		if err != nil {
-			return err
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			closeErr = fmt.Errorf("could not close response body: %w", closeErr)
+			err = errors.Join(err, closeErr)
 		}
-		_, err = io.Copy(io.Discard, response.Body)
-		defer response.Body.Close()
-		if err != nil {
-			return err
-		}
+	}()
+
+	_, err = io.Copy(io.Discard, response.Body)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -92,7 +112,7 @@ func main() {
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
 			msgs := metrics.MakeMessages()
-			err := send(&cfg.Address, msgs)
+			err := send(cfg.Address, msgs)
 			if err != nil {
 				log.Println(err)
 			}

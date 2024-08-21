@@ -1,57 +1,78 @@
 package api
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-type reqPars struct {
-	URI      string
-	method   string
-	duration time.Duration
+var Log *slog.Logger
+var lvl *slog.LevelVar
+
+var reqID = 0
+
+func init() {
+
+	lvl = new(slog.LevelVar)
+	lvl.Set(slog.LevelDebug)
+	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
+	slog.SetDefault(Log)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
-type respPars struct {
-	code     int
-	bodySize int
-}
-
-type logParams struct {
-	reqPars
-	respPars
-}
-
-func (l *logParams) String() string {
-	return l.method + " - " + strconv.Itoa(l.code) + " - " + strconv.Itoa(l.bodySize) + " - " + l.duration.String() + " - " + l.URI
-}
-
-func logger() gin.HandlerFunc {
+func logger(lev slog.Level) gin.HandlerFunc {
+	lvl.Set(lev)
 	return func(ctx *gin.Context) {
+		reqID++
+
+		// copy request body for logging
+		bodyBytes, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			bodyBytes = []byte(err.Error())
+		}
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		Log.Info(
+			"REQ",
+			slog.Int("id", reqID),
+			slog.String("method", ctx.Request.Method),
+			slog.String("uri", ctx.Request.URL.Path),
+			slog.Int64("body_size", ctx.Request.ContentLength),
+			slog.String("ip", ctx.Request.RemoteAddr),
+			slog.String("user_agent", ctx.Request.UserAgent()),
+		)
+
+		Log.Debug("REQ_BODY", slog.Int("id", reqID), slog.String("body", string(bodyBytes)))
+
 		// Start timer
 		start := time.Now()
 		// Process request
 		ctx.Next()
 
-		pars := logParams{
-			reqPars: reqPars{
-				URI:      ctx.Request.URL.Path,
-				method:   ctx.Request.Method,
-				duration: time.Since(start),
-			},
-			respPars: respPars{
-				code:     ctx.Writer.Status(),
-				bodySize: ctx.Writer.Size(),
-			},
+		status := ctx.Writer.Status()
+		if status > 399 {
+			Log.Error("RES",
+				slog.Int("id", reqID),
+				slog.Int("status", status),
+				slog.Duration("duration", time.Since(start)),
+				slog.String("err", ctx.Errors.String()),
+			)
+			return
 		}
-
-		slog.Info(pars.String())
+		Log.Info(
+			"RES",
+			slog.Int("id", reqID),
+			slog.Int("status", status),
+			slog.Duration("duration", time.Since(start)),
+			slog.Int("body_size", ctx.Writer.Size()),
+		)
 	}
 }
 
@@ -122,7 +143,7 @@ func compressGzip() gin.HandlerFunc {
 		if sendsGzip {
 			cr, err := newCompressReader(ctx.Request.Body)
 			if err != nil {
-				ctx.Writer.WriteHeader(http.StatusInternalServerError)
+				ctx.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
 			defer cr.Close()

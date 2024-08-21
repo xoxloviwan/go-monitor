@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_server"
@@ -9,8 +10,9 @@ import (
 
 func main() {
 	cfg := conf.InitConfig()
-	err := api.RunServer(cfg.Address, cfg.FileStoragePath, cfg.Restore, cfg.StoreInterval)
+	err := api.RunServer(cfg)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Server down", slog.Any("error", err))
+		os.Exit(1)
 	}
 }

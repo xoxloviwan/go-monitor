@@ -1,11 +1,14 @@
 package store
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/mailru/easyjson"
+	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
 const CounterName = "counter"
@@ -47,6 +50,64 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 		return errors.New("unknown metric type")
 	}
 	return err
+}
+
+func (s *MemStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
+
+	for _, v := range *m {
+		if v.MType == GaugeName {
+			s.Gauge[v.ID] = *v.Value
+		}
+		if v.MType == CounterName {
+			s.Counter[v.ID] = *v.Delta + s.Counter[v.ID]
+		}
+	}
+	return nil
+}
+
+func (s *MemStorage) GetMetrics(ctx context.Context, m mtr.MetricsList) (mtr.MetricsList, error) {
+
+	uniqID := make(map[string]bool)
+	for _, v := range m {
+		if v.MType == GaugeName {
+			uniqID[v.ID] = true
+		}
+		if v.MType == CounterName {
+			uniqID[v.ID] = false
+		}
+	}
+
+	metrics := make(mtr.MetricsList, 0, len(m))
+
+	for id := range uniqID {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context canceled during processing: %w", ctx.Err())
+		default:
+			var metric mtr.Metrics
+			if uniqID[id] {
+				metric = mtr.Metrics{
+					ID:    id,
+					MType: GaugeName,
+					Value: new(float64),
+				}
+				*metric.Value = s.Gauge[id]
+			} else {
+				metric = mtr.Metrics{
+					ID:    id,
+					MType: CounterName,
+					Delta: new(int64),
+				}
+				*metric.Delta = s.Counter[id]
+			}
+			metrics = append(metrics, metric)
+		}
+	}
+	return metrics, nil
 }
 
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
