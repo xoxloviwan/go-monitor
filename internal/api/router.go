@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -114,11 +115,24 @@ type Storage interface {
 	DBStorage
 }
 
+func generateRandom(size int) ([]byte, error) {
+	// генерируем случайную последовательность байт
+	b := make([]byte, size)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
 func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level) *gin.Engine {
 	handler := NewHandler(dbstore)
 	r := gin.New()
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
+	key, _ := generateRandom(16)
+	r.Use(verifyHash(key))
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)
 	r.POST("/updates/", handler.updateJSON)

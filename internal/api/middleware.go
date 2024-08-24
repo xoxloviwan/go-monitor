@@ -3,12 +3,16 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"crypto/hmac"
+	"crypto/sha256"
 
 	"github.com/gin-gonic/gin"
 )
@@ -150,6 +154,24 @@ func compressGzip() gin.HandlerFunc {
 			ctx.Request.Body = cr
 		}
 
+		ctx.Next()
+	}
+}
+
+func verifyHash(key []byte) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		h := hmac.New(sha256.New, key)
+
+		var buf bytes.Buffer
+		tee := io.TeeReader(ctx.Request.Body, &buf)
+		_, err := io.Copy(h, tee)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		ctx.Request.Body = io.NopCloser(&buf)
+		sign := h.Sum(nil)
+		ctx.Writer.Header().Set("HashSHA256", hex.EncodeToString(sign))
 		ctx.Next()
 	}
 }
