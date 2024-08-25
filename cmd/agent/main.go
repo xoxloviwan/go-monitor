@@ -3,11 +3,16 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mailru/easyjson"
@@ -16,7 +21,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr string, msgs api.MetricsList) (err error) {
+func send(adr string, msgs api.MetricsList, key string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -25,6 +30,13 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	body, err = easyjson.Marshal(&msgs)
 	if err != nil {
 		return err
+	}
+	var sign string
+	if key != "" {
+		sign, err = getHash(body, key)
+		if err != nil {
+			return err
+		}
 	}
 	var gzbody []byte
 	gzbody, err = compressGzip(body)
@@ -40,6 +52,20 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+
+	if key != "" {
+		req.Header.Set("HashSHA256", sign)
+	}
+
+	logReq := []any{
+		slog.String("url", url),
+		slog.String("body", string(body))}
+
+	for header, values := range req.Header {
+		logReq = append(logReq, slog.String(header, strings.Join(values, ",")))
+	}
+
+	slog.Info("REQ", logReq...)
 
 	var response *http.Response
 	retry := 0
@@ -94,6 +120,21 @@ func compressGzip(data []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+func getHash(data []byte, strkey string) (string, error) {
+	key, err := hex.DecodeString(strkey)
+	if err != nil {
+		return "", err
+	}
+	h := hmac.New(sha256.New, key)
+	_, err = h.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	sign := h.Sum(nil)
+	return hex.EncodeToString(sign), nil
+}
+
 func main() {
 	cfg := conf.InitConfig()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
@@ -112,7 +153,7 @@ func main() {
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
 			msgs := metrics.MakeMessages()
-			err := send(cfg.Address, msgs)
+			err := send(cfg.Address, msgs, cfg.Key)
 			if err != nil {
 				log.Println(err)
 			}

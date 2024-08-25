@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -56,7 +56,13 @@ func RunServer(cfg config.Config) error {
 			slog.Warn("Restore failed", slog.Any("error", err.Error()))
 		}
 	}
-	r := SetupRouter(pingHandler, s, slog.LevelDebug)
+
+	key, err := hex.DecodeString(cfg.Key)
+	if err != nil {
+		return err
+	}
+
+	r := SetupRouter(pingHandler, s, slog.LevelDebug, key)
 
 	wasError := make(chan error)
 	go func() {
@@ -115,24 +121,14 @@ type Storage interface {
 	DBStorage
 }
 
-func generateRandom(size int) ([]byte, error) {
-	// генерируем случайную последовательность байт
-	b := make([]byte, size)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level) *gin.Engine {
+func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) *gin.Engine {
 	handler := NewHandler(dbstore)
 	r := gin.New()
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
-	key, _ := generateRandom(16)
-	r.Use(verifyHash(key))
+	if len(key) > 0 {
+		r.Use(verifyHash(key))
+	}
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)
 	r.POST("/updates/", handler.updateJSON)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/hex"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -158,20 +159,60 @@ func compressGzip() gin.HandlerFunc {
 	}
 }
 
+type signingWriter struct {
+	gin.ResponseWriter
+	key []byte
+}
+
+func newSigningWriter(w gin.ResponseWriter, key []byte) *signingWriter {
+	return &signingWriter{
+		ResponseWriter: w,
+		key:            key,
+	}
+}
+
+func (sw *signingWriter) Write(msg []byte) (int, error) {
+
+	h := hmac.New(sha256.New, sw.key)
+
+	_, err := h.Write(msg)
+
+	if err != nil {
+		return 0, err
+	}
+	sign := h.Sum(nil)
+	sw.Header().Set("HashSHA256", hex.EncodeToString(sign))
+
+	return sw.ResponseWriter.Write(msg)
+}
+
 func verifyHash(key []byte) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		gotSign, err := hex.DecodeString(ctx.Request.Header.Get("HashSHA256"))
+		if err != nil {
+			ctx.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		if len(gotSign) != sha256.Size {
+			ctx.AbortWithError(http.StatusBadRequest, errors.New("invalid hash size"))
+			return
+		}
 		h := hmac.New(sha256.New, key)
 
 		var buf bytes.Buffer
 		tee := io.TeeReader(ctx.Request.Body, &buf)
-		_, err := io.Copy(h, tee)
+		_, err = io.Copy(h, tee)
 		if err != nil {
 			ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 		ctx.Request.Body = io.NopCloser(&buf)
 		sign := h.Sum(nil)
-		ctx.Writer.Header().Set("HashSHA256", hex.EncodeToString(sign))
+		if !hmac.Equal(sign, gotSign) {
+			ctx.AbortWithError(http.StatusBadRequest, errors.New("invalid hash"))
+			return
+		}
+		ctx.Writer = newSigningWriter(ctx.Writer, key)
 		ctx.Next()
 	}
 }
