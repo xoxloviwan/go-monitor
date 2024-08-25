@@ -119,12 +119,8 @@ func compressGzip(data []byte) ([]byte, error) {
 }
 
 func getHash(data []byte, strkey string) (string, error) {
-	key, err := hex.DecodeString(strkey)
-	if err != nil {
-		return "", err
-	}
-	h := hmac.New(sha256.New, key)
-	_, err = h.Write(data)
+	h := hmac.New(sha256.New, []byte(strkey))
+	_, err := h.Write(data)
 	if err != nil {
 		return "", err
 	}

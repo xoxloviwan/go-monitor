@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -57,12 +56,7 @@ func RunServer(cfg config.Config) error {
 		}
 	}
 
-	key, err := hex.DecodeString(cfg.Key)
-	if err != nil {
-		slog.Warn("Invalid key!", slog.String("key", cfg.Key), slog.Any("error", err.Error()))
-	}
-
-	r := SetupRouter(pingHandler, s, slog.LevelDebug, key)
+	r := SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key))
 
 	wasError := make(chan error)
 	go func() {
