@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/mailru/easyjson"
@@ -57,15 +55,15 @@ func send(adr string, msgs api.MetricsList, key string) (err error) {
 		req.Header.Set("HashSHA256", sign)
 	}
 
-	logReq := []any{
-		slog.String("url", url),
-		slog.String("body", string(body))}
+	// logReq := []any{
+	// 	slog.String("url", url),
+	// 	slog.String("body", string(body))}
 
-	for header, values := range req.Header {
-		logReq = append(logReq, slog.String(header, strings.Join(values, ",")))
-	}
+	// for header, values := range req.Header {
+	// 	logReq = append(logReq, slog.String(header, strings.Join(values, ",")))
+	// }
 
-	slog.Info("REQ", logReq...)
+	// slog.Info("REQ", logReq...)
 
 	var response *http.Response
 	retry := 0
