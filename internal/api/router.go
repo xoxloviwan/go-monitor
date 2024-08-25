@@ -59,7 +59,7 @@ func RunServer(cfg config.Config) error {
 
 	key, err := hex.DecodeString(cfg.Key)
 	if err != nil {
-		return err
+		slog.Warn("Invalid key!", slog.String("key", cfg.Key), slog.Any("error", err.Error()))
 	}
 
 	r := SetupRouter(pingHandler, s, slog.LevelDebug, key)
