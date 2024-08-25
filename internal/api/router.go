@@ -3,10 +3,10 @@ package api
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -57,9 +57,14 @@ func RunServer(cfg config.Config) error {
 		}
 	}
 
-	key, err := hex.DecodeString(cfg.Key)
-	if err != nil {
-		slog.Warn("Invalid key!", slog.String("key", cfg.Key), slog.Any("error", err.Error()))
+	var key []byte
+	if cfg.Key != "" {
+		var err error
+		key, err = os.ReadFile(cfg.Key)
+		if err != nil {
+			slog.Warn("Invalid key!", slog.String("path", cfg.Key), slog.Any("error", err.Error()))
+		}
+		slog.Info("got key", slog.String("key", fmt.Sprintf("%v", key)))
 	}
 
 	r := SetupRouter(pingHandler, s, slog.LevelDebug, key)

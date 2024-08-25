@@ -17,7 +17,7 @@ var (
 	address        = flag.String("a", AddressDefault, "server adress")
 	pollInterval   = flag.Int("p", PollIntervalDefault, "poll interval in seconds")
 	reportInterval = flag.Int("r", ReportIntervalDefault, "report interval in seconds")
-	key            = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
+	key            = flag.String("k", "", "path to file with key for encrypting and decrypting data")
 )
 
 type Config struct {

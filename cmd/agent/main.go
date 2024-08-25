@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/mailru/easyjson"
@@ -19,7 +20,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr string, msgs api.MetricsList, key string) (err error) {
+func send(adr string, msgs api.MetricsList, keypath string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -30,8 +31,8 @@ func send(adr string, msgs api.MetricsList, key string) (err error) {
 		return err
 	}
 	var sign string
-	if key != "" {
-		sign, err = getHash(body, key)
+	if keypath != "" {
+		sign, err = getHash(body, keypath)
 		if err != nil {
 			return err
 		}
@@ -51,7 +52,7 @@ func send(adr string, msgs api.MetricsList, key string) (err error) {
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
 
-	if key != "" {
+	if keypath != "" {
 		req.Header.Set("HashSHA256", sign)
 	}
 
@@ -118,8 +119,8 @@ func compressGzip(data []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func getHash(data []byte, strkey string) (string, error) {
-	key, err := hex.DecodeString(strkey)
+func getHash(data []byte, keypath string) (string, error) {
+	key, err := os.ReadFile(keypath)
 	if err != nil {
 		return "", err
 	}
