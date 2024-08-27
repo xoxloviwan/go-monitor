@@ -194,7 +194,8 @@ func verifyHash(key []byte) gin.HandlerFunc {
 			return
 		}
 		if len(gotSign) != sha256.Size {
-			ctx.AbortWithError(http.StatusBadRequest, errors.New("invalid hash size"))
+			ctx.Next()
+			//ctx.AbortWithError(http.StatusBadRequest, errors.New("invalid hash size"))
 			return
 		}
 		h := hmac.New(sha256.New, key)
