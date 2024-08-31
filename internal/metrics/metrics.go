@@ -4,6 +4,10 @@ import (
 	"math/rand"
 	"runtime"
 
+	"sync"
+
+	"log/slog"
+
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 
@@ -14,10 +18,32 @@ import (
 type MetricsPool store.MemStorage
 
 func GetMetrics(PollCount int64) *MetricsPool {
+	var wg sync.WaitGroup
+	var cpuUtilization []float64
+	var vMem *mem.VirtualMemoryStat
+	var err error
+	wg.Add(3)
+
 	var MemStats runtime.MemStats
-	runtime.ReadMemStats(&MemStats)
-	cpuUtilization, _ := cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
-	vMem, _ := mem.VirtualMemory()
+	go func() {
+		runtime.ReadMemStats(&MemStats)
+		wg.Done()
+	}()
+	go func() {
+		cpuUtilization, err = cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
+		if err != nil {
+			slog.Error("Getting cpu utilization failed:", slog.Any("error", err))
+		}
+		wg.Done()
+	}()
+	go func() {
+		vMem, err = mem.VirtualMemory()
+		if err != nil {
+			slog.Error("Getting virtual memory failed:", slog.Any("error", err))
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 	return &MetricsPool{
 		Gauge: map[string]float64{
 			"Alloc":           float64(MemStats.Alloc),
