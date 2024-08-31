@@ -20,7 +20,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(workerId int, adr string, msgs api.MetricsList, key string) (err error) {
+func send(workerID int, adr string, msgs api.MetricsList, key string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -75,7 +75,7 @@ func send(workerId int, adr string, msgs api.MetricsList, key string) (err error
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		log.Printf("worker #%d: %s Retry %d ...", workerId, err.Error(), retry+1)
+		log.Printf("worker #%d: %s Retry %d ...", workerID, err.Error(), retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
