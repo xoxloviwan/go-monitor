@@ -11,6 +11,7 @@ const (
 	AddressDefault        = "localhost:8080"
 	PollIntervalDefault   = 2
 	ReportIntervalDefault = 10
+	RateLimitDefault      = 1
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 	pollInterval   = flag.Int("p", PollIntervalDefault, "poll interval in seconds")
 	reportInterval = flag.Int("r", ReportIntervalDefault, "report interval in seconds")
 	key            = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
-	rateLimit      = flag.Int("l", 0, "number of outgoing requests at once")
+	rateLimit      = flag.Int("l", RateLimitDefault, "number of outgoing requests at once")
 )
 
 type Config struct {
@@ -26,7 +27,7 @@ type Config struct {
 	ReportInterval int64  `envDefault:"10"`
 	PollInterval   int64  `envDefault:"2"`
 	Key            string `envDefault:""`
-	RateLimit      int64  `envDefault:"0"`
+	RateLimit      int    `envDefault:"1"`
 }
 
 func InitConfig() Config {
@@ -53,8 +54,8 @@ func InitConfig() Config {
 	if cfg.Key != *key && cfg.Key == "" {
 		cfg.Key = *key
 	}
-	if cfg.RateLimit != int64(*rateLimit) && cfg.RateLimit == 0 {
-		cfg.RateLimit = int64(*rateLimit)
+	if cfg.RateLimit != int(*rateLimit) && cfg.RateLimit == RateLimitDefault {
+		cfg.RateLimit = int(*rateLimit)
 	}
 	return cfg
 

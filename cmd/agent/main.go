@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/mailru/easyjson"
@@ -19,7 +20,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr string, msgs api.MetricsList, key string) (err error) {
+func send(workerId int, adr string, msgs api.MetricsList, key string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -74,7 +75,7 @@ func send(adr string, msgs api.MetricsList, key string) (err error) {
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		log.Printf("%s Retry %d ...", err.Error(), retry+1)
+		log.Printf("worker #%d: %s Retry %d ...", workerId, err.Error(), retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
@@ -129,6 +130,25 @@ func getHash(data []byte, strkey string) (string, error) {
 	return hex.EncodeToString(sign), nil
 }
 
+// source - канал со снятыми метриками, содержит весь пакет
+// n - на сколько запросов/работников можно разделить пакет метрик
+func SplitBatch(source <-chan api.Metrics, n int) []<-chan api.Metrics {
+	dests := make([]<-chan api.Metrics, 0) // Создать срез dests
+
+	for i := 0; i < n; i++ { // Создать n выходных каналов
+		ch := make(chan api.Metrics)
+		dests = append(dests, ch)
+		go func() { // Каждый выходной канал передается
+			defer close(ch) // своей сопрограмме, которая состязается
+			// с другими за доступ к source
+			for val := range source {
+				ch <- val
+			}
+		}()
+	}
+	return dests
+}
+
 func main() {
 	cfg := conf.InitConfig()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
@@ -146,11 +166,29 @@ func main() {
 			pollCount += 1
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
-			msgs := metrics.MakeMessages()
-			err := send(cfg.Address, msgs, cfg.Key)
-			if err != nil {
-				log.Println(err)
+			msgCh := metrics.MakeMessages()
+			dests := SplitBatch(msgCh, cfg.RateLimit) // Fan Out
+
+			var wg sync.WaitGroup // Использовать WaitGroup для ожидания, пока
+			wg.Add(len(dests))    // не закроются выходные каналы
+			for i, ch := range dests {
+				go func(worker int, d <-chan api.Metrics) {
+					defer wg.Done()
+					subbatch := make([]api.Metrics, 0)
+					for val := range d {
+						subbatch = append(subbatch, val)
+					}
+					if len(subbatch) > 0 {
+						log.Printf("worker #%d got %+v\n", worker, subbatch)
+						err := send(worker, cfg.Address, subbatch, cfg.Key)
+						if err != nil {
+							log.Printf("worker #%d error: %s\n", worker, err.Error())
+						}
+					}
+				}(i, ch)
 			}
+			wg.Wait()
+			log.Println("Jobs done")
 		}
 	}
 }

@@ -84,21 +84,28 @@ func GetMetrics(PollCount int64) *MetricsPool {
 	}
 }
 
-func (s *MetricsPool) MakeMessages() api.MetricsList {
-	var msgs api.MetricsList
-	for metricName, metricValue := range s.Gauge {
-		msgs = append(msgs, api.Metrics{
-			ID:    metricName,
-			MType: store.GaugeName,
-			Value: &metricValue,
-		})
-	}
-	for metricName, metricValue := range s.Counter {
-		msgs = append(msgs, api.Metrics{
-			ID:    metricName,
-			MType: store.CounterName,
-			Delta: &metricValue,
-		})
-	}
-	return msgs
+func (s *MetricsPool) MakeMessages() chan api.Metrics {
+	ch := make(chan api.Metrics)
+	// через отдельную горутину генератор отправляет данные в канал
+	go func() {
+		// закрываем канал по завершению горутины — это отправитель
+		defer close(ch)
+
+		for metricName, metricValue := range s.Gauge {
+			ch <- api.Metrics{
+				ID:    metricName,
+				MType: store.GaugeName,
+				Value: &metricValue,
+			}
+		}
+		for metricName, metricValue := range s.Counter {
+			ch <- api.Metrics{
+				ID:    metricName,
+				MType: store.CounterName,
+				Delta: &metricValue,
+			}
+		}
+	}()
+
+	return ch
 }
