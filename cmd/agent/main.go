@@ -131,11 +131,11 @@ func getHash(data []byte, strkey string) (string, error) {
 }
 
 // source - канал со снятыми метриками, содержит весь пакет
-// n - на сколько запросов/работников можно разделить пакет метрик
-func SplitBatch(source <-chan api.Metrics, n int) []<-chan api.Metrics {
-	dests := make([]<-chan api.Metrics, n) // Создать массив dests
+// poolSize - на сколько запросов/работников можно разделить пакет метрик
+func SplitBatch(source <-chan api.Metrics, poolSize int) []<-chan api.Metrics {
+	dests := make([]<-chan api.Metrics, poolSize) // Создать массив dests
 
-	for i := 0; i < n; i++ { // Создать n выходных каналов
+	for i := 0; i < poolSize; i++ { // Создать n выходных каналов
 		ch := make(chan api.Metrics)
 		dests[i] = ch
 		go func() { // Каждый выходной канал передается
