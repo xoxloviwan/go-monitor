@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/mailru/easyjson"
@@ -16,7 +20,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
-func send(adr string, msgs api.MetricsList) (err error) {
+func send(workerID int, adr string, msgs api.MetricsList, key string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -25,6 +29,13 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	body, err = easyjson.Marshal(&msgs)
 	if err != nil {
 		return err
+	}
+	var sign string
+	if key != "" {
+		sign, err = getHash(body, key)
+		if err != nil {
+			return err
+		}
 	}
 	var gzbody []byte
 	gzbody, err = compressGzip(body)
@@ -41,6 +52,10 @@ func send(adr string, msgs api.MetricsList) (err error) {
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
 
+	if key != "" {
+		req.Header.Set("HashSHA256", sign)
+	}
+
 	var response *http.Response
 	retry := 0
 	response, err = cl.Do(req)
@@ -50,7 +65,7 @@ func send(adr string, msgs api.MetricsList) (err error) {
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		log.Printf("%s Retry %d ...", err.Error(), retry+1)
+		log.Printf("worker #%d: %s Retry %d ...", workerID, err.Error(), retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
@@ -94,6 +109,36 @@ func compressGzip(data []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+func getHash(data []byte, strkey string) (string, error) {
+	h := hmac.New(sha256.New, []byte(strkey))
+	_, err := h.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	sign := h.Sum(nil)
+	return hex.EncodeToString(sign), nil
+}
+
+// source - канал со снятыми метриками, содержит весь пакет
+// poolSize - на сколько запросов/работников можно разделить пакет метрик
+func SplitBatch(source <-chan api.Metrics, poolSize int) []<-chan api.Metrics {
+	dests := make([]<-chan api.Metrics, poolSize) // Создать массив dests
+
+	for i := 0; i < poolSize; i++ { // Создать n выходных каналов
+		ch := make(chan api.Metrics)
+		dests[i] = ch
+		go func() { // Каждый выходной канал передается
+			defer close(ch) // своей сопрограмме, которая состязается
+			// с другими за доступ к source
+			for val := range source {
+				ch <- val
+			}
+		}()
+	}
+	return dests
+}
+
 func main() {
 	cfg := conf.InitConfig()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
@@ -111,11 +156,29 @@ func main() {
 			pollCount += 1
 			metrics = metrs.GetMetrics(pollCount)
 		case <-sendTicker.C:
-			msgs := metrics.MakeMessages()
-			err := send(cfg.Address, msgs)
-			if err != nil {
-				log.Println(err)
+			msgCh := metrics.MakeMessages()
+			dests := SplitBatch(msgCh, cfg.RateLimit) // Fan Out
+
+			var wg sync.WaitGroup // Использовать WaitGroup для ожидания, пока
+			wg.Add(len(dests))    // не закроются выходные каналы
+			for i, ch := range dests {
+				go func(worker int, d <-chan api.Metrics) {
+					defer wg.Done()
+					subbatch := make([]api.Metrics, 0)
+					for val := range d {
+						subbatch = append(subbatch, val)
+					}
+					if len(subbatch) > 0 {
+						log.Printf("worker #%d got %+v\n", worker, subbatch)
+						err := send(worker, cfg.Address, subbatch, cfg.Key)
+						if err != nil {
+							log.Printf("worker #%d error: %s\n", worker, err.Error())
+						}
+					}
+				}(i, ch)
 			}
+			wg.Wait()
+			log.Println("Jobs done")
 		}
 	}
 }

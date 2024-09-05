@@ -20,6 +20,7 @@ var (
 	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
 	databaseDSN     = flag.String("d", DatabaseDSNDefault, "database DSN, e.g. postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable")
+	key             = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
 )
 
 type Config struct {
@@ -28,6 +29,7 @@ type Config struct {
 	FileStoragePath string `envDefault:""`
 	Restore         bool   `envDefault:"true"`
 	DatabaseDSN     string `envDefault:""`
+	Key             string `envDefault:""`
 }
 
 func InitConfig() Config {
@@ -57,6 +59,10 @@ func InitConfig() Config {
 	}
 	if cfg.DatabaseDSN != *databaseDSN && cfg.DatabaseDSN == DatabaseDSNDefault {
 		cfg.DatabaseDSN = *databaseDSN
+	}
+
+	if cfg.Key != *key && cfg.Key == "" {
+		cfg.Key = *key
 	}
 	return cfg
 }

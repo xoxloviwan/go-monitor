@@ -50,7 +50,7 @@ func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
 
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
-	return SetupRouter(ping, m, slog.LevelError), m
+	return SetupRouter(ping, m, slog.LevelError, []byte("")), m
 }
 
 func Test_update_value(t *testing.T) {
