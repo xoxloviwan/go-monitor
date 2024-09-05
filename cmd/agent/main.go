@@ -56,16 +56,6 @@ func send(workerID int, adr string, msgs api.MetricsList, key string) (err error
 		req.Header.Set("HashSHA256", sign)
 	}
 
-	// logReq := []any{
-	// 	slog.String("url", url),
-	// 	slog.String("body", string(body))}
-
-	// for header, values := range req.Header {
-	// 	logReq = append(logReq, slog.String(header, strings.Join(values, ",")))
-	// }
-
-	// slog.Info("REQ", logReq...)
-
 	var response *http.Response
 	retry := 0
 	response, err = cl.Do(req)
