@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -144,20 +145,29 @@ func needRetry(err error) bool {
 	var e *pgconn.PgError
 	return errors.As(err, &e) && pgerrcode.IsConnectionException(e.Code)
 }
+
+func makeQueryString(metricsList mtr.MetricsList) (string, error) {
+	var err error
+	b := bytes.NewBufferString("SELECT id, gauge, counter FROM metrics where id in (")
+	for k, v := range metricsList {
+		if (k) == len(metricsList)-1 {
+			_, err = fmt.Fprintf(b, "'%s')", v.ID)
+		} else {
+			_, err = fmt.Fprintf(b, "'%s',", v.ID)
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return b.String(), nil
+}
+
 func (s *DBStorage) GetMetrics(ctx context.Context, metricsList mtr.MetricsList) (mtr.MetricsList, error) {
-
-	metricsID := make(map[string]bool)
-
-	for _, v := range metricsList {
-		metricsID[v.ID] = true
+	query, err := makeQueryString(metricsList)
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
-
-	query := "SELECT id, gauge, counter FROM metrics where id in ("
-	for k := range metricsID {
-		query += fmt.Sprintf("'%s',", k)
-	}
-	query = query[:len(query)-1]
-	query += ")"
 	log.Println(query)
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
