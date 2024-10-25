@@ -11,7 +11,7 @@ const (
 	addressDefault         = "localhost:8080"
 	storeIntervalDefault   = 300
 	fileStoragePathDefault = ""
-	DatabaseDSNDefault     = ""
+	databaseDSNDefault     = ""
 )
 
 var (
@@ -19,17 +19,26 @@ var (
 	storeInterval   = flag.Int("i", storeIntervalDefault, "store interval in seconds")
 	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
-	databaseDSN     = flag.String("d", DatabaseDSNDefault, "database DSN, e.g. postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable")
+	databaseDSN     = flag.String("d", databaseDSNDefault, "database DSN, e.g. postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable")
 	key             = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
 )
 
+// Config represents the configuration for the server.
+//
+// It contains fields for the server address, store interval, file storage path, restore flag, database DSN, and key.
 type Config struct {
-	Address         string `envDefault:"localhost:8080"`
-	StoreInterval   int    `envDefault:"300"`
+	// Address is the server address.
+	Address string `envDefault:"localhost:8080"`
+	// StoreInterval is the interval at which metrics are stored.
+	StoreInterval int `envDefault:"300"`
+	// FileStoragePath is the path to the file where metrics are stored.
 	FileStoragePath string `envDefault:""`
-	Restore         bool   `envDefault:"true"`
-	DatabaseDSN     string `envDefault:""`
-	Key             string `envDefault:""`
+	// Restore is a flag indicating whether to restore data from file on startup.
+	Restore bool `envDefault:"true"`
+	// DatabaseDSN is the DSN for the database.
+	DatabaseDSN string `envDefault:""`
+	// Key is the key used for encryption and decryption.
+	Key string `envDefault:""`
 }
 
 func InitConfig() Config {
@@ -57,7 +66,7 @@ func InitConfig() Config {
 	if cfg.FileStoragePath != *fileStoragePath && cfg.FileStoragePath == fileStoragePathDefault {
 		cfg.FileStoragePath = *fileStoragePath
 	}
-	if cfg.DatabaseDSN != *databaseDSN && cfg.DatabaseDSN == DatabaseDSNDefault {
+	if cfg.DatabaseDSN != *databaseDSN && cfg.DatabaseDSN == databaseDSNDefault {
 		cfg.DatabaseDSN = *databaseDSN
 	}
 

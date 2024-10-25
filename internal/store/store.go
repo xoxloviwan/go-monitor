@@ -11,7 +11,10 @@ import (
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+// CounterName is a constant representing the counter metric type.
 const CounterName = "counter"
+
+// GaugeName is a constant representing the gauge metric type.
 const GaugeName = "gauge"
 
 // Gauge is a map of gauge metrics.

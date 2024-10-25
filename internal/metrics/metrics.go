@@ -15,8 +15,14 @@ import (
 	"github.com/xoxloviwan/go-monitor/internal/store"
 )
 
+// MetricsPool is a pool of metrics.
+//
+// It provides methods for getting metrics and making messages.
 type MetricsPool store.MemStorage
 
+// GetMetrics returns a new MetricsPool instance.
+//
+// The instance is initialized with the given poll count.
 func GetMetrics(PollCount int64) *MetricsPool {
 	var wg sync.WaitGroup
 	var cpuUtilization []float64
@@ -84,6 +90,9 @@ func GetMetrics(PollCount int64) *MetricsPool {
 	}
 }
 
+// MakeMessages returns a channel of metrics messages.
+//
+// The channel is populated with messages from the MetricsPool instance.
 func (s *MetricsPool) MakeMessages() chan api.Metrics {
 	ch := make(chan api.Metrics)
 	// через отдельную горутину генератор отправляет данные в канал
