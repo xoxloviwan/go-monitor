@@ -38,6 +38,9 @@ type Config struct {
 	RateLimit int `envDefault:"1"`
 }
 
+// InitConfig initializes a new Config instance.
+//
+// The instance is initialized with the given environment variables and command-line flags.
 func InitConfig() Config {
 	cfg := Config{}
 	opts := env.Options{UseFieldNameByDefault: true}

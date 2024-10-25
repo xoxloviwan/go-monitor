@@ -41,6 +41,9 @@ type Config struct {
 	Key string `envDefault:""`
 }
 
+// InitConfig initializes a new Config instance.
+//
+// The instance is initialized with the given environment variables and command-line flags.
 func InitConfig() Config {
 	cfg := Config{}
 	opts := env.Options{UseFieldNameByDefault: true}
