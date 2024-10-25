@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// logger struct used in package
 var Log *slog.Logger
 var lvl *slog.LevelVar
 
@@ -93,6 +94,7 @@ func newCompressWriter(w gin.ResponseWriter) *compressWriter {
 	}
 }
 
+// Write пишет данные во внутренний поток gzip, который сжимает данные
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
@@ -121,10 +123,12 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Read распаковывывает сжатые данные из потока в срез p
 func (c compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Close закрывает внутренние потоки compressReader
 func (c *compressReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
@@ -171,6 +175,9 @@ func newSigningWriter(w gin.ResponseWriter, key []byte) *signingWriter {
 	}
 }
 
+// Вычисляет подпись с помощью HMAC-SHA256 по срезу байт msg.
+//
+// Добавляет подпись в заголовок запроса HashSHA256 и пишет данные msg во внутреннюю структуру ответа ResponseWriter.
 func (sw *signingWriter) Write(msg []byte) (int, error) {
 
 	h := hmac.New(sha256.New, sw.key)
