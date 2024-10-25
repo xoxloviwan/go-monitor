@@ -16,21 +16,33 @@ import (
 	mtrTypes "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+// Handler is an API handler.
+//
+// It contains a store that implements the ReaderWriter interface.
 type Handler struct {
 	store ReaderWriter
 }
 
+// Reader is an interface for reading metrics.
+//
+// It provides methods for getting metrics values and lists of metrics.
 type Reader interface {
 	Get(metricType string, metricName string) (string, bool)
 	GetMetrics(ctx context.Context, metricList mtrTypes.MetricsList) (mtrTypes.MetricsList, error)
 	String() string
 }
 
+// Writer is an interface for writing metrics.
+//
+// It provides methods for adding metrics values and lists of metrics.
 type Writer interface {
 	Add(metricType string, metricName string, metricValue string) error
 	AddMetrics(ctx context.Context, m *mtrTypes.MetricsList) error
 }
 
+// ReaderWriter is an interface that combines Reader and Writer.
+//
+// It provides methods for both reading and writing metrics.
 type ReaderWriter interface {
 	Reader
 	Writer
