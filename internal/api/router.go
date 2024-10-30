@@ -131,7 +131,7 @@ type Storage interface {
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
 func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) *gin.Engine {
-	handler := NewHandler(dbstore)
+	handler := newHandler(dbstore)
 	r := gin.New()
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))

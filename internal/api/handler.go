@@ -48,10 +48,10 @@ type ReaderWriter interface {
 	Writer
 }
 
-// NewHandler returns a new API handler.
+// newHandler returns a new API handler.
 //
 // The handler is initialized with the given store, which must implement the ReaderWriter interface.
-func NewHandler(store ReaderWriter) *Handler {
+func newHandler(store ReaderWriter) *Handler {
 	return &Handler{
 		store: store,
 	}
