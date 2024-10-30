@@ -42,6 +42,7 @@ type testcasesWithBody []struct {
 	wantBody           string
 	reqContentEncoding string
 	acceptEncoding     string
+	HashSHA256         string
 	lastCounterValue   int64
 	lastGaugeValue     float64
 }
@@ -55,7 +56,7 @@ func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
 
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
-	return SetupRouter(ping, m, slog.LevelError, []byte("")), m
+	return SetupRouter(ping, m, slog.LevelError, []byte("test")), m
 }
 
 func Test_update_value(t *testing.T) {
@@ -358,6 +359,22 @@ func Test_valueJSON(t *testing.T) {
 			lastCounterValue: 43,
 			lastGaugeValue:   0,
 		},
+		{
+			testcase: testcase{
+				name:   "service_post_value_gauge_json_encript_200",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:          `{"id": "someMetric", "type": "gauge"}`,
+			wantBody:         `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+			lastCounterValue: 0,
+			lastGaugeValue:   23.4,
+			HashSHA256:       "e7920d999a1fb76b43dae4085f5c6e38e0566d9bc49fe4e1a21586c8a7adee61",
+		},
 	}
 
 	router, m := setup(t)
@@ -399,6 +416,9 @@ func Test_valueJSON(t *testing.T) {
 			}
 			if tt.acceptEncoding == "gzip" {
 				req.Header.Add("Accept-Encoding", "gzip")
+			}
+			if tt.HashSHA256 != "" {
+				req.Header.Add("HashSHA256", tt.HashSHA256)
 			}
 
 			gotInput := mt.Metrics{}
