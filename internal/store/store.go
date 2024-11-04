@@ -11,19 +11,35 @@ import (
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+// CounterName is a constant representing the counter metric type.
 const CounterName = "counter"
+
+// GaugeName is a constant representing the gauge metric type.
 const GaugeName = "gauge"
 
+// Gauge is a map of gauge metrics.
+//
+// The keys are the metric names and the values are the metric values.
 type Gauge map[string]float64
 
+// Counter is a map of counter metrics.
+//
+// The keys are the metric names and the values are the metric values.
 type Counter map[string]int64
 
 // easyjson:json
+
+// MemStorage is an in-memory storage implementation.
+//
+// It provides methods for adding metrics, getting metrics, restoring data from a file, and saving data to a file.
 type MemStorage struct {
 	Gauge   `json:"gauge"`
 	Counter `json:"counter"`
 }
 
+// NewMemStorage returns a new MemStorage instance.
+//
+// The instance is initialized with empty Gauge and Counter maps.
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		Gauge:   make(map[string]float64),
@@ -31,6 +47,9 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
+// Add adds a metric to the MemStorage instance.
+//
+// The metric is added with the given type, name, and value.
 func (s *MemStorage) Add(metricType string, metricName string, metricValue string) (err error) {
 	switch metricType {
 	case CounterName:
@@ -52,6 +71,9 @@ func (s *MemStorage) Add(metricType string, metricName string, metricValue strin
 	return err
 }
 
+// AddMetrics adds multiple metrics to the MemStorage instance.
+//
+// The metrics are added with the given context and metrics list.
 func (s *MemStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	err := ctx.Err()
 	if err != nil {
@@ -69,6 +91,9 @@ func (s *MemStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	return nil
 }
 
+// GetMetrics gets metrics from the MemStorage instance.
+//
+// The metrics are retrieved with the given context and metrics list.
 func (s *MemStorage) GetMetrics(ctx context.Context, m mtr.MetricsList) (mtr.MetricsList, error) {
 
 	uniqID := make(map[string]bool)
@@ -110,6 +135,9 @@ func (s *MemStorage) GetMetrics(ctx context.Context, m mtr.MetricsList) (mtr.Met
 	return metrics, nil
 }
 
+// Get gets a metric from the MemStorage instance.
+//
+// The metric is retrieved with the given type and name.
 func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	switch metricType {
 	case CounterName:
@@ -133,6 +161,7 @@ func (s *MemStorage) Get(metricType string, metricName string) (string, bool) {
 	}
 }
 
+// String returns a string representation of the MemStorage instance.
 func (s *MemStorage) String() string {
 	var res = ""
 	for metricName, metricValue := range s.Gauge {
@@ -144,6 +173,9 @@ func (s *MemStorage) String() string {
 	return res
 }
 
+// SaveToFile saves data to a file.
+//
+// The data is saved to the given file path.
 func (s MemStorage) SaveToFile(path string) error {
 	data, err := easyjson.Marshal(s)
 	if err != nil {
@@ -153,6 +185,9 @@ func (s MemStorage) SaveToFile(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+// RestoreFromFile restores data from a file.
+//
+// The data is restored from the given file path.
 func (s *MemStorage) RestoreFromFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {

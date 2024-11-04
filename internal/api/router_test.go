@@ -1,7 +1,10 @@
 package api
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -35,10 +38,13 @@ type testcases []testcase
 
 type testcasesWithBody []struct {
 	testcase
-	reqBody          string
-	wantBody         string
-	lastCounterValue int64
-	lastGaugeValue   float64
+	reqBody            string
+	wantBody           string
+	reqContentEncoding string
+	acceptEncoding     string
+	HashSHA256         string
+	lastCounterValue   int64
+	lastGaugeValue     float64
 }
 
 func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
@@ -50,7 +56,7 @@ func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
 
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
-	return SetupRouter(ping, m, slog.LevelError, []byte("")), m
+	return SetupRouter(ping, m, slog.LevelError, []byte("test")), m
 }
 
 func Test_update_value(t *testing.T) {
@@ -323,6 +329,23 @@ func Test_valueJSON(t *testing.T) {
 		},
 		{
 			testcase: testcase{
+				name:   "service_post_value_gauge_json_gzip_200",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:            "H4sIAAAAAAAAA6tWykxRslJQKs7PTfVNLSnKTFbSUVAqqSxIBYmmJ5ampyrVAgBnEswkJQAAAA==",
+			wantBody:           `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+			reqContentEncoding: "gzip",
+			acceptEncoding:     "gzip",
+			lastCounterValue:   0,
+			lastGaugeValue:     23.4,
+		},
+		{
+			testcase: testcase{
 				name:   "service_post_value_counter_json_200",
 				url:    "/value/",
 				method: http.MethodPost,
@@ -336,6 +359,22 @@ func Test_valueJSON(t *testing.T) {
 			lastCounterValue: 43,
 			lastGaugeValue:   0,
 		},
+		{
+			testcase: testcase{
+				name:   "service_post_value_gauge_json_encript_200",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code:        http.StatusOK,
+					contentType: "application/json",
+				},
+			},
+			reqBody:          `{"id": "someMetric", "type": "gauge"}`,
+			wantBody:         `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
+			lastCounterValue: 0,
+			lastGaugeValue:   23.4,
+			HashSHA256:       "e7920d999a1fb76b43dae4085f5c6e38e0566d9bc49fe4e1a21586c8a7adee61",
+		},
 	}
 
 	router, m := setup(t)
@@ -344,15 +383,46 @@ func Test_valueJSON(t *testing.T) {
 
 			var err error
 
-			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.reqBody))
+			var reqBody io.Reader
+			var reqBodyJSON []byte
+			if tt.reqContentEncoding == "gzip" {
+				data, err := base64.StdEncoding.DecodeString(tt.reqBody)
+				if err != nil {
+					t.Error(err)
+				}
+				reqBody = bytes.NewReader(data)
+				reqBodyUnpacked, err := gzip.NewReader(reqBody)
+				if err != nil {
+					t.Error(err)
+				}
+				reqBodyJSON, err = io.ReadAll(reqBodyUnpacked)
+				if err != nil {
+					t.Error(err)
+				}
+				reqBody = bytes.NewReader(data)
+			} else {
+				reqBody = strings.NewReader(tt.reqBody)
+				reqBodyJSON = []byte(tt.reqBody)
+			}
+
+			req := httptest.NewRequest(tt.method, tt.url, reqBody)
 			w := httptest.NewRecorder()
 
 			req.Header = map[string][]string{
 				"Content-Type": {"application/json"},
 			}
+			if tt.reqContentEncoding == "gzip" {
+				req.Header.Add("Content-Encoding", "gzip")
+			}
+			if tt.acceptEncoding == "gzip" {
+				req.Header.Add("Accept-Encoding", "gzip")
+			}
+			if tt.HashSHA256 != "" {
+				req.Header.Add("HashSHA256", tt.HashSHA256)
+			}
 
 			gotInput := mt.Metrics{}
-			if err = gotInput.UnmarshalJSON([]byte(tt.reqBody)); err != nil {
+			if err = gotInput.UnmarshalJSON(reqBodyJSON); err != nil {
 				t.Error(err)
 			}
 
@@ -374,10 +444,22 @@ func Test_valueJSON(t *testing.T) {
 				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
 			}
 			var bodyBytes []byte
-			bodyBytes, err = io.ReadAll(res.Body)
-			if err != nil {
-				t.Error(err)
+			if res.Header.Get("Content-Encoding") == "gzip" {
+				reqBodyUnpacked, err := gzip.NewReader(res.Body)
+				if err != nil {
+					t.Error(err)
+				}
+				bodyBytes, err = io.ReadAll(reqBodyUnpacked)
+				if err != nil {
+					t.Error(err)
+				}
+			} else {
+				bodyBytes, err = io.ReadAll(res.Body)
+				if err != nil {
+					t.Error(err)
+				}
 			}
+
 			var got = mt.Metrics{}
 			var want = mt.Metrics{}
 			if err = got.UnmarshalJSON(bodyBytes); err != nil {

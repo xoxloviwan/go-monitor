@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,16 +19,25 @@ import (
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+// DBStorage is a database storage implementation.
+//
+// It provides methods for creating a table, setting batch data, adding metrics, getting metrics, and restoring data from a file.
 type DBStorage struct {
 	db *sql.DB
 }
 
+// NewDBStorage returns a new DBStorage instance.
+//
+// The instance is initialized with the given sql.DB.
 func NewDBStorage(db *sql.DB) *DBStorage {
 	return &DBStorage{
 		db: db,
 	}
 }
 
+// CreateTable creates a table in the database if it does not exist.
+//
+// The table is created with the given column names and types.
 func (s *DBStorage) CreateTable() error {
 	var err error
 	_, err = s.db.ExecContext(context.Background(), fmt.Sprintf(`CREATE TABLE IF NOT EXISTS metrics (
@@ -40,6 +50,9 @@ func (s *DBStorage) CreateTable() error {
 	return err
 }
 
+// SetBatch sets batch data in the database.
+//
+// The data is set in the given context with the given timeout.
 func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) {
 
 	ctx, cancel := context.WithTimeout(parent, 120*time.Second)
@@ -91,6 +104,9 @@ func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) 
 	})
 }
 
+// Add adds a metric to the database.
+//
+// The metric is added with the given type, name, and value.
 func (s *DBStorage) Add(metricType string, metricName string, metricValue string) (err error) {
 
 	query := fmt.Sprintf(`INSERT INTO metrics (id, %s, %s) VALUES ($1, $2, $3)
@@ -118,6 +134,9 @@ func (s *DBStorage) Add(metricType string, metricName string, metricValue string
 	return err
 }
 
+// AddMetrics adds multiple metrics to the database.
+//
+// The metrics are added with the given context and metrics list.
 func (s *DBStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 
 	metrics := NewMemStorage()
@@ -144,20 +163,32 @@ func needRetry(err error) bool {
 	var e *pgconn.PgError
 	return errors.As(err, &e) && pgerrcode.IsConnectionException(e.Code)
 }
+
+func makeQueryString(metricsList mtr.MetricsList) (string, error) {
+	var err error
+	b := bytes.NewBufferString("SELECT id, gauge, counter FROM metrics where id in (")
+	for k, v := range metricsList {
+		if (k) == len(metricsList)-1 {
+			_, err = fmt.Fprintf(b, "'%s')", v.ID)
+		} else {
+			_, err = fmt.Fprintf(b, "'%s',", v.ID)
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return b.String(), nil
+}
+
+// GetMetrics gets metrics from the database.
+//
+// The metrics are retrieved with the given context and metrics list.
 func (s *DBStorage) GetMetrics(ctx context.Context, metricsList mtr.MetricsList) (mtr.MetricsList, error) {
-
-	metricsID := make(map[string]bool)
-
-	for _, v := range metricsList {
-		metricsID[v.ID] = true
+	query, err := makeQueryString(metricsList)
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
-
-	query := "SELECT id, gauge, counter FROM metrics where id in ("
-	for k := range metricsID {
-		query += fmt.Sprintf("'%s',", k)
-	}
-	query = query[:len(query)-1]
-	query += ")"
 	log.Println(query)
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
@@ -188,6 +219,9 @@ func (s *DBStorage) GetMetrics(ctx context.Context, metricsList mtr.MetricsList)
 	return metricsListWithValues, nil
 }
 
+// Get gets a metric from the database.
+//
+// The metric is retrieved with the given type and name.
 func (s *DBStorage) Get(metricType string, metricName string) (string, bool) {
 	var colName = GaugeName
 	if metricType == CounterName {
@@ -205,6 +239,7 @@ func (s *DBStorage) Get(metricType string, metricName string) (string, bool) {
 	return metricValue, true
 }
 
+// String returns a string representation of the DBStorage instance.
 func (s *DBStorage) String() string {
 	query := "SELECT id, gauge, counter FROM metrics"
 	log.Println(query)
@@ -243,6 +278,9 @@ func (s *DBStorage) String() string {
 	return string(str)
 }
 
+// RestoreFromFile restores data from a file.
+//
+// The data is restored from the given file path.
 func (s *DBStorage) RestoreFromFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {

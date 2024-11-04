@@ -15,6 +15,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// RunServer runs the API server with the given configuration.
+//
+// It sets up the routes, middleware, and logging, and starts the server.
 func RunServer(cfg config.Config) error {
 	var s DBStorage
 	var pingHandler gin.HandlerFunc
@@ -78,7 +81,7 @@ func RunServer(cfg config.Config) error {
 			case err := <-wasError:
 				return err
 			default:
-				err := BackupData(mems, cfg.FileStoragePath)
+				err := backupData(mems, cfg.FileStoragePath)
 				if err != nil {
 					return err
 				}
@@ -91,7 +94,7 @@ func RunServer(cfg config.Config) error {
 	for {
 		select {
 		case <-backupTicker.C:
-			err := BackupData(mems, cfg.FileStoragePath)
+			err := backupData(mems, cfg.FileStoragePath)
 			if err != nil {
 				return err
 			}
@@ -101,22 +104,34 @@ func RunServer(cfg config.Config) error {
 	}
 }
 
+// Backuper is an interface for backing up data.
+//
+// It provides a method for saving the data to a file.
 type Backuper interface {
 	SaveToFile(path string) error
 }
 
+// DBStorage is an interface for database storage.
+//
+// It provides methods for restoring data from a file and implementing the ReaderWriter interface.
 type DBStorage interface {
 	RestoreFromFile(path string) error
 	ReaderWriter
 }
 
+// Storage is an interface that combines Backuper and DBStorage.
+//
+// It provides methods for backing up data and restoring data from a file.
 type Storage interface {
 	Backuper
 	DBStorage
 }
 
+// SetupRouter returns a new gin.Engine with the given routes and middleware.
+//
+// The engine is initialized with the given ping handler, store, log level, and key.
 func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) *gin.Engine {
-	handler := NewHandler(dbstore)
+	handler := newHandler(dbstore)
 	r := gin.New()
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
@@ -135,7 +150,7 @@ func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level
 	return r
 }
 
-func BackupData(b Backuper, path string) error {
+func backupData(b Backuper, path string) error {
 	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
 	return b.SaveToFile(path)
 }

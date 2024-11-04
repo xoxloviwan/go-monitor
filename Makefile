@@ -10,7 +10,10 @@ test:
 	go test ./internal/api
 
 cover:
-	go test ./internal/api -coverprofile cover && go tool cover -func cover && rm cover
+	go test ./... -coverprofile cover && go tool cover -func cover
+
+coverv:
+	go tool cover -html cover
 
 mock:
 	mockgen -destination ./internal/api/mock/mock_store.go github.com/xoxloviwan/go-monitor/internal/api ReaderWriter
