@@ -21,9 +21,9 @@ GOBIN ?= $$(go env GOPATH)/bin
 install-go-test-coverage:
 	go install github.com/vladopajic/go-test-coverage/v2@v2.10.1
 
-.PHONY: check-coverage
-check-coverage: install-go-test-coverage
-	go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+.PHONY: cover
+cover: install-go-test-coverage
+	go test ./... -coverprofile=./cover.out -coverpkg=./...
 	go tool cover -func ./cover.out
 	${GOBIN}/go-test-coverage --config=./.testcoverage.yml
 

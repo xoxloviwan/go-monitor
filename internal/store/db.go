@@ -50,58 +50,64 @@ func (s *DBStorage) CreateTable() error {
 	return err
 }
 
-// SetBatch sets batch data in the database.
+// setBatch sets batch data in the database.
 //
 // The data is set in the given context with the given timeout.
-func (s *DBStorage) SetBatch(parent context.Context, m *MemStorage) (err error) {
+func setBatch(parent context.Context, db *sql.DB, m *MemStorage) error {
 
 	ctx, cancel := context.WithTimeout(parent, 120*time.Second)
 	defer cancel()
 
-	var conn *sql.Conn
-	conn, err = s.db.Conn(ctx)
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return err
 	}
-	return conn.Raw(func(driverConn interface{}) error {
+	return conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
 		defer conn.Close(ctx)
-
-		batch := &pgx.Batch{}
-		for id, val := range m.Gauge {
-			queryes := "INSERT INTO metrics (id, gauge) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET gauge = @val"
-			log.Printf("query: %s |%v %v\n", queryes, id, val)
-			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
-		}
-		for id, val := range m.Counter {
-			queryes := "INSERT INTO metrics (id, counter) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET counter = metrics.counter + @val"
-			log.Printf("query: %s |%v %v\n", queryes, id, val)
-			batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
-		}
-		br := conn.SendBatch(ctx, batch)
-
-		var errs []error
-
-		defer func() error {
-			err = br.Close()
-			if err != nil {
-				errs = append(errs, err)
-			}
-			return errors.Join(errs...)
-		}()
-
-		for i := 0; i < batch.Len(); i++ {
-			ct, err := br.Exec()
-			if err != nil {
-				errs = append(errs, err)
-			}
-			if ct.RowsAffected() != 1 {
-				errs = append(errs, fmt.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1))
-			}
-		}
-
-		return errors.Join(errs...)
+		return setBatchPgx(ctx, conn, m)
 	})
+}
+
+type PgxIface interface {
+	SendBatch(ctx context.Context, b *pgx.Batch) (br pgx.BatchResults)
+}
+
+func setBatchPgx(ctx context.Context, conn PgxIface, m *MemStorage) (err error) {
+	batch := &pgx.Batch{}
+	for id, val := range m.Gauge {
+		queryes := "INSERT INTO metrics (id, gauge) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET gauge = @val"
+		log.Printf("query: %s |%v %v\n", queryes, id, val)
+		batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
+	}
+	for id, val := range m.Counter {
+		queryes := "INSERT INTO metrics (id, counter) VALUES (@id, @val) ON CONFLICT (id) DO UPDATE SET counter = metrics.counter + @val"
+		log.Printf("query: %s |%v %v\n", queryes, id, val)
+		batch.Queue(queryes, pgx.NamedArgs{"id": id, "val": val})
+	}
+	br := conn.SendBatch(ctx, batch)
+
+	var errs []error
+
+	defer func() error {
+		err = br.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return errors.Join(errs...)
+	}()
+
+	for i := 0; i < batch.Len(); i++ {
+		ct, err := br.Exec()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if ct.RowsAffected() != 1 {
+			errs = append(errs, fmt.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // Add adds a metric to the database.
@@ -143,7 +149,7 @@ func (s *DBStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 	metrics.AddMetrics(ctx, m)
 
 	retry := 0
-	err := s.SetBatch(ctx, metrics)
+	err := setBatch(ctx, s.db, metrics)
 	for needRetry(err) && retry < 3 {
 		select {
 		case <-ctx.Done():
@@ -152,7 +158,7 @@ func (s *DBStorage) AddMetrics(ctx context.Context, m *mtr.MetricsList) error {
 			after := (retry+1)*2 - 1
 			slog.Error(fmt.Sprintf("%s Retry %d ...", err.Error(), retry+1))
 			time.Sleep(time.Duration(after) * time.Second)
-			err = s.SetBatch(ctx, metrics)
+			err = setBatch(ctx, s.db, metrics)
 			retry++
 		}
 	}
@@ -196,7 +202,6 @@ func (s *DBStorage) GetMetrics(ctx context.Context, metricsList mtr.MetricsList)
 		return nil, err
 	}
 	defer rows.Close()
-	log.Println("GetMetrics check 1")
 	metricsListWithValues := mtr.MetricsList{}
 	for rows.Next() {
 		var nm mtr.Metrics
@@ -292,7 +297,7 @@ func (s *DBStorage) RestoreFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	err = s.SetBatch(context.Background(), &metrics)
+	err = setBatch(context.Background(), s.db, &metrics)
 	if err != nil {
 		return err
 	}
