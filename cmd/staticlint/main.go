@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
@@ -59,12 +58,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if next {
 			continue
 		}
-		fmt.Println(pass.Pkg)
 
 		ast.Inspect(file, func(node ast.Node) bool {
 
 			if fn, ok := node.(*ast.FuncDecl); ok {
-				fmt.Println(fn.Name)
 				if fn.Name.String() == "main" {
 					ast.Inspect(fn.Body, func(n ast.Node) bool {
 						if c, ok := n.(*ast.CallExpr); ok {
