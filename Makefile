@@ -7,7 +7,7 @@ buildagent:
 	GOOS=windows go build -o bin/agent.exe cmd/agent/main.go
 
 test:
-	go test ./internal/api
+	go test ./...
 
 cover:
 	go test ./... -coverprofile cover && go tool cover -func cover
