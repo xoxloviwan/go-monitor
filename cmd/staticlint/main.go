@@ -13,10 +13,7 @@ import (
 )
 
 func main() {
-	mychecks := []*analysis.Analyzer{
-		defers.Analyzer,
-		loopclosure.Analyzer,
-	}
+	mychecks := []*analysis.Analyzer{defers.Analyzer, loopclosure.Analyzer}
 	for _, v := range staticcheck.Analyzers {
 		mychecks = append(mychecks, v.Analyzer)
 	}
@@ -24,9 +21,7 @@ func main() {
 	mychecks = append(mychecks, st1013.Analyzer)
 	mychecks = append(mychecks, NoMainExitCheck)
 
-	multichecker.Main(
-		mychecks...,
-	)
+	multichecker.Main(mychecks...)
 }
 
 var NoMainExitCheck = &analysis.Analyzer{
