@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -9,6 +10,7 @@ import (
 )
 
 func TestCreateTable(t *testing.T) {
+	t.Parallel()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -27,6 +29,7 @@ func TestCreateTable(t *testing.T) {
 }
 
 func TestSetBatchPgx(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mock, err := pgxmock.NewConn()
 	if err != nil {
@@ -55,5 +58,49 @@ func TestSetBatchPgx(t *testing.T) {
 	err = setBatchPgx(ctx, mock, memstore)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestString(t *testing.T) {
+	t.Parallel()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	store := NewDBStorage(db)
+	rows := sqlmock.NewRows([]string{"id", "gauge", "counter"}).
+		AddRow("item1", 2.5, nil).
+		AddRow("item2", nil, 4)
+
+	mock.ExpectQuery("SELECT id, gauge, counter FROM metrics").WillReturnRows(rows)
+
+	str := store.String()
+	fmt.Println(str)
+	if str == "" {
+		t.Error(err)
+	}
+}
+
+func TestGet(t *testing.T) {
+	t.Parallel()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	store := NewDBStorage(db)
+	rows := sqlmock.NewRows([]string{"counter"}).AddRow("4")
+
+	mock.ExpectQuery("SELECT counter FROM metrics").WillReturnRows(rows)
+
+	str, ok := store.Get("counter", "item2")
+	if !ok {
+		t.Errorf("item not found")
+	}
+	if str != "4" {
+		t.Errorf("wrong value of item: %s", str)
 	}
 }
