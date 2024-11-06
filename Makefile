@@ -1,9 +1,9 @@
 DATEBIN = "/c/Program Files/Git/usr/bin/date.exe"
 GITBIN = "/c/Program Files/Git/cmd/git.exe"
-VERSION := v1.0.1
-COMMIT := $$($(GITBIN) rev-parse --short HEAD)
-DATE := $$($(DATEBIN) -I)
-LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT)
+VERSION = v1.0.1
+COMMIT = $$($(GITBIN) rev-parse --short HEAD)
+DATE = $$($(DATEBIN) -I)
+LDFLAGS = -X main.buildVersion=$(VERSION) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT)
 
 all: buildserver buildagent
 
