@@ -18,7 +18,7 @@ import (
 // RunServer runs the API server with the given configuration.
 //
 // It sets up the routes, middleware, and logging, and starts the server.
-func RunServer(cfg config.Config) error {
+func RunServer(r Router, cfg config.Config) error {
 	var s DBStorage
 	var pingHandler gin.HandlerFunc
 
@@ -59,7 +59,7 @@ func RunServer(cfg config.Config) error {
 		}
 	}
 
-	r := SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key))
+	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key))
 
 	wasError := make(chan error)
 	go func() {
@@ -127,12 +127,25 @@ type Storage interface {
 	DBStorage
 }
 
+//go:generate mockgen -destination ./mock_router.go -package api github.com/xoxloviwan/go-monitor/internal/api Router
+type Router interface {
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte)
+	Run(addr ...string) error
+}
+
+type RouterImpl struct {
+	*gin.Engine
+}
+
+func NewRouter() *RouterImpl {
+	return &RouterImpl{gin.New()}
+}
+
 // SetupRouter returns a new gin.Engine with the given routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
-func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) *gin.Engine {
+func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) {
 	handler := newHandler(dbstore)
-	r := gin.New()
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
 	if len(key) > 0 {
@@ -146,8 +159,6 @@ func SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level
 	r.GET("/", handler.list)
 
 	r.GET("/ping", ping)
-
-	return r
 }
 
 func backupData(b Backuper, path string) error {

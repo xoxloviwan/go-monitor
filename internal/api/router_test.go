@@ -18,6 +18,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	mock "github.com/xoxloviwan/go-monitor/internal/api/mock"
+	conf "github.com/xoxloviwan/go-monitor/internal/config_server"
 	mt "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
@@ -47,7 +48,7 @@ type testcasesWithBody []struct {
 	lastGaugeValue     float64
 }
 
-func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
+func setup(t *testing.T) (*RouterImpl, *mock.MockReaderWriter) {
 	ping := func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	}
@@ -56,7 +57,9 @@ func setup(t *testing.T) (*gin.Engine, *mock.MockReaderWriter) {
 
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
-	return SetupRouter(ping, m, slog.LevelError, []byte("test")), m
+	r := NewRouter()
+	r.SetupRouter(ping, m, slog.LevelError, []byte("test"))
+	return r, m
 }
 
 func Test_update_value(t *testing.T) {
@@ -590,5 +593,20 @@ func Test_updatesJSON(t *testing.T) {
 				t.Errorf("Body mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestRunServer(t *testing.T) {
+	cfg := conf.InitConfig()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cfg.StoreInterval = 0
+	m := NewMockRouter(ctrl)
+	m.EXPECT().SetupRouter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+	anyErr := fmt.Errorf("error")
+	m.EXPECT().Run(cfg.Address).Return(anyErr).Times(1)
+	err := RunServer(m, cfg)
+	if err != anyErr {
+		t.Error(err)
 	}
 }

@@ -17,7 +17,8 @@ var (
 func main() {
 	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 	cfg := conf.InitConfig()
-	err := api.RunServer(cfg)
+	r := api.NewRouter()
+	err := api.RunServer(r, cfg)
 	if err != nil {
 		api.LogFatal("Server down", slog.Any("error", err))
 	}
