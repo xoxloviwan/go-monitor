@@ -128,15 +128,19 @@ type Storage interface {
 }
 
 //go:generate mockgen -destination ./mock_router.go -package api github.com/xoxloviwan/go-monitor/internal/api Router
+
+// Router interface for API server.
 type Router interface {
 	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte)
 	Run(addr ...string) error
 }
 
+// RouterImpl is wrap for gin.Engine.
 type RouterImpl struct {
 	*gin.Engine
 }
 
+// NewRouter returns a new Router instance.
 func NewRouter() *RouterImpl {
 	return &RouterImpl{gin.New()}
 }
