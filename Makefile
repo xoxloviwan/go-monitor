@@ -1,10 +1,17 @@
+DATEBIN = "/c/Program Files/Git/usr/bin/date.exe"
+GITBIN = "/c/Program Files/Git/cmd/git.exe"
+VERSION := v1.0.1
+COMMIT := $$($(GITBIN) rev-parse --short HEAD)
+DATE := $$($(DATEBIN) -I)
+LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT)
+
 all: buildserver buildagent
 
 buildserver:
-	GOOS=windows go build -o bin/server.exe cmd/server/main.go
+	GOOS=windows go build -o bin/server.exe -ldflags "$(LDFLAGS)" cmd/server/main.go
 
 buildagent:
-	GOOS=windows go build -o bin/agent.exe cmd/agent/main.go
+	GOOS=windows go build -o bin/agent.exe -ldflags "$(LDFLAGS)" cmd/agent/main.go
 
 test:
 	go test ./...
