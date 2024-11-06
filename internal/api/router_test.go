@@ -246,6 +246,17 @@ func Test_updateJSON(t *testing.T) {
 			lastCounterValue: 23,
 			lastGaugeValue:   0,
 		},
+		{
+			testcase: testcase{
+				name:   "service_post_update_gauge_bad_json_400",
+				url:    "/update/",
+				method: http.MethodPost,
+				want: want{
+					code: http.StatusBadRequest,
+				},
+			},
+			reqBody: `"id": "someMetric", "type": "gauge", "value": 23.4`,
+		},
 	}
 
 	router, m := setup(t)
@@ -262,9 +273,11 @@ func Test_updateJSON(t *testing.T) {
 			}
 
 			gotInput := mt.Metrics{}
-			if err = gotInput.UnmarshalJSON([]byte(tt.reqBody)); err != nil {
-				t.Error(err)
+			err = gotInput.UnmarshalJSON([]byte(tt.reqBody))
+			if err != nil {
+				req.Header.Set("Content-Type", "plain/text")
 			}
+
 			gotInputList := &mt.MetricsList{gotInput}
 			m.EXPECT().AddMetrics(gomock.Any(), gotInputList).Return(nil).Times(1)
 
@@ -288,6 +301,10 @@ func Test_updateJSON(t *testing.T) {
 			if tt.want.code != res.StatusCode {
 				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
 			}
+			if tt.want.code != http.StatusOK {
+				return
+			}
+
 			var bodyBytes []byte
 			bodyBytes, err = io.ReadAll(res.Body)
 			if err != nil {
@@ -375,6 +392,17 @@ func Test_valueJSON(t *testing.T) {
 			lastGaugeValue:   23.4,
 			HashSHA256:       "e7920d999a1fb76b43dae4085f5c6e38e0566d9bc49fe4e1a21586c8a7adee61",
 		},
+		{
+			testcase: testcase{
+				name:   "service_post_value_gauge_bad_json_400",
+				url:    "/value/",
+				method: http.MethodPost,
+				want: want{
+					code: http.StatusBadRequest,
+				},
+			},
+			reqBody: `"id": "someMetric", "type": "gauge", "value": 23.4`,
+		},
 	}
 
 	router, m := setup(t)
@@ -422,8 +450,9 @@ func Test_valueJSON(t *testing.T) {
 			}
 
 			gotInput := mt.Metrics{}
-			if err = gotInput.UnmarshalJSON(reqBodyJSON); err != nil {
-				t.Error(err)
+			err = gotInput.UnmarshalJSON(reqBodyJSON)
+			if err != nil {
+				req.Header.Set("Content-Type", "plain/text")
 			}
 
 			m.EXPECT().Get(gotInput.MType, gotInput.ID).DoAndReturn(func(metricType string, metricName string) (string, bool) {
@@ -442,6 +471,9 @@ func Test_valueJSON(t *testing.T) {
 
 			if tt.want.code != res.StatusCode {
 				t.Error("Status code mismatch. want:", tt.want.code, "got:", res.StatusCode)
+			}
+			if tt.want.code != http.StatusOK {
+				return
 			}
 			var bodyBytes []byte
 			if res.Header.Get("Content-Encoding") == "gzip" {
