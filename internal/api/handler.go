@@ -40,6 +40,8 @@ type Writer interface {
 	AddMetrics(ctx context.Context, m *mtrTypes.MetricsList) error
 }
 
+//go:generate mockgen -destination ./mock/mock_store.go github.com/xoxloviwan/go-monitor/internal/api ReaderWriter
+
 // ReaderWriter is an interface that combines Reader and Writer.
 //
 // It provides methods for both reading and writing metrics.

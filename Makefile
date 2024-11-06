@@ -9,9 +9,6 @@ buildagent:
 test:
 	go test ./...
 
-mock:
-	mockgen -destination ./internal/api/mock/mock_store.go github.com/xoxloviwan/go-monitor/internal/api ReaderWriter
-
 lint:
 	go build -o bin/multichecker.exe cmd/staticlint/main.go
 
