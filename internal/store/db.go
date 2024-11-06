@@ -69,6 +69,12 @@ func setBatch(parent context.Context, db *sql.DB, m *MemStorage) error {
 	})
 }
 
+// PgxIface represents an interface for sending batches of SQL statements to a PostgreSQL database using the pgx library.
+// There is no way we can hijack the real pgx.Conn for pgxmock.
+//
+// Links:
+// * https://github.com/pashagolub/pgxmock/issues/20
+// * https://github.com/jackc/pgx/pull/1996#issuecomment-2090089072
 type PgxIface interface {
 	SendBatch(ctx context.Context, b *pgx.Batch) (br pgx.BatchResults)
 }

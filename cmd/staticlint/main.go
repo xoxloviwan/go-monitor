@@ -24,6 +24,7 @@ func main() {
 	multichecker.Main(mychecks...)
 }
 
+// NoMainExitCheck is an analyzer that checks for direct calls to os.Exit() from the main() function of the main package.
 var NoMainExitCheck = &analysis.Analyzer{
 	Name: "nomainexit",
 	Doc:  "direct call os.Exit() from main() function of main package not allowed",
