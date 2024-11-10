@@ -597,11 +597,9 @@ func Test_updatesJSON(t *testing.T) {
 }
 
 func TestRunServer(t *testing.T) {
-	cfg := conf.InitConfig()
+	cfg := conf.Config{}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cfg.StoreInterval = 0
-	cfg.DatabaseDSN = "" // test only with mem storage
 	m := NewMockRouter(ctrl)
 	m.EXPECT().SetupRouter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	anyErr := fmt.Errorf("error")
