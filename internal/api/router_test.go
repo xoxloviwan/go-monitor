@@ -601,6 +601,7 @@ func TestRunServer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cfg.StoreInterval = 0
+	cfg.DatabaseDSN = "" // test only with mem storage
 	m := NewMockRouter(ctrl)
 	m.EXPECT().SetupRouter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	anyErr := fmt.Errorf("error")
