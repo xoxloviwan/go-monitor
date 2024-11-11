@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	asc "github.com/xoxloviwan/go-monitor/internal/asym_crypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 
@@ -59,7 +60,16 @@ func RunServer(r Router, cfg config.Config) error {
 		}
 	}
 
-	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key))
+	var pKey *asc.PrivateKey
+	if cfg.CryptoKey != "" {
+		var err error
+		pKey, err = asc.GetPrivateKey(cfg.CryptoKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey)
 
 	wasError := make(chan error)
 	go func() {
@@ -131,7 +141,7 @@ type Storage interface {
 
 // Router interface for API server.
 type Router interface {
-	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte)
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
 	Run(addr ...string) error
 }
 
@@ -148,12 +158,15 @@ func NewRouter() *RouterImpl {
 // SetupRouter returns a new gin.Engine with the given routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
-func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte) {
+func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey) {
 	handler := newHandler(dbstore)
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
 	if len(key) > 0 {
 		r.Use(verifyHash(key))
+	}
+	if privateKey != nil {
+		r.Use(decryptBody(privateKey))
 	}
 	r.POST("/update/:metricType/:metricName/:metricValue", handler.update)
 	r.POST("/update/", handler.updateJSON)

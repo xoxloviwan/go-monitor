@@ -20,7 +20,8 @@ var (
 	fileStoragePath = flag.String("f", fileStoragePathDefault, "path to file with metrics")
 	restore         = flag.Bool("r", true, "if need to restore data on start")
 	databaseDSN     = flag.String("d", databaseDSNDefault, "database DSN, e.g. postgresql://postgres:12345@localhost:5432/postgres?sslmode=disable")
-	key             = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
+	key             = flag.String("k", "", "key for signing of response body data by SHA256 algorithm, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
+	cryptoKey       = flag.String("crypto-key", "", "path to file with private key for decrypting request body")
 )
 
 // Config represents the configuration for the server.
@@ -37,8 +38,10 @@ type Config struct {
 	Restore bool `envDefault:"true"`
 	// DatabaseDSN is the DSN for the database.
 	DatabaseDSN string `envDefault:""`
-	// Key is the key used for encryption and decryption.
+	// Key  for signing of response body data by SHA256 algorithm
 	Key string `envDefault:""`
+	// Path to file with private key for decrypting request body
+	CryptoKey string `envDefault:""`
 }
 
 // InitConfig initializes a new Config instance.
@@ -75,6 +78,10 @@ func InitConfig() Config {
 
 	if cfg.Key != *key && cfg.Key == "" {
 		cfg.Key = *key
+	}
+
+	if cfg.CryptoKey != *cryptoKey && cfg.CryptoKey == "" {
+		cfg.CryptoKey = *cryptoKey
 	}
 	return cfg
 }

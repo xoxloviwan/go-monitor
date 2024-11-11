@@ -58,7 +58,7 @@ func setup(t *testing.T) (*RouterImpl, *mock.MockReaderWriter) {
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
 	r := NewRouter()
-	r.SetupRouter(ping, m, slog.LevelError, []byte("test"))
+	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil)
 	return r, m
 }
 
@@ -601,7 +601,7 @@ func TestRunServer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	m := NewMockRouter(ctrl)
-	m.EXPECT().SetupRouter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+	m.EXPECT().SetupRouter(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	anyErr := fmt.Errorf("error")
 	m.EXPECT().Run(cfg.Address).Return(anyErr).Times(1)
 	err := RunServer(m, cfg)

@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 
 	"github.com/gin-gonic/gin"
+	asc "github.com/xoxloviwan/go-monitor/internal/asym_crypto"
 )
 
 // logger struct used in package
@@ -221,6 +223,33 @@ func verifyHash(key []byte) gin.HandlerFunc {
 			return
 		}
 		ctx.Writer = newSigningWriter(ctx.Writer, key)
+		ctx.Next()
+	}
+}
+
+func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		key := ctx.Request.Header.Get("X-Key")
+		if key == "" {
+			ctx.Next()
+			return
+		}
+		encryptedSessionKey, err := hex.DecodeString(key)
+		if err != nil {
+			ctx.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		bodyBytes, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		if len(bodyBytes) == 0 {
+			ctx.Next()
+			return
+		}
+		decryptBody, err := asc.Decrypt(privateKey, encryptedSessionKey, bodyBytes)
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBody))
 		ctx.Next()
 	}
 }

@@ -19,6 +19,7 @@ var (
 	pollInterval   = flag.Int("p", pollIntervalDefault, "poll interval in seconds")
 	reportInterval = flag.Int("r", reportIntervalDefault, "report interval in seconds")
 	key            = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
+	cryptoKey      = flag.String("crypto-key", "", "path to file with public key for encrypting data")
 	rateLimit      = flag.Int("l", rateLimitDefault, "number of outgoing requests at once")
 )
 
@@ -32,8 +33,10 @@ type Config struct {
 	ReportInterval int64 `envDefault:"10"`
 	// PollInterval is the interval at which metrics are polled.
 	PollInterval int64 `envDefault:"2"`
-	// Key is the key used for encrypting and decrypting data.
+	// Key for signing of request body data by SHA256 algorithm
 	Key string `envDefault:""`
+	// Path to file with public key for ecrypting request body
+	CryptoKey string `envDefault:""`
 	// RateLimit is the number of outgoing requests at once.
 	RateLimit int `envDefault:"1"`
 }
@@ -64,6 +67,9 @@ func InitConfig() Config {
 	}
 	if cfg.Key != *key && cfg.Key == "" {
 		cfg.Key = *key
+	}
+	if cfg.CryptoKey != *cryptoKey && cfg.CryptoKey == "" {
+		cfg.CryptoKey = *cryptoKey
 	}
 	if cfg.RateLimit != int(*rateLimit) && cfg.RateLimit == rateLimitDefault {
 		cfg.RateLimit = int(*rateLimit)
