@@ -249,6 +249,10 @@ func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
 			return
 		}
 		decryptBody, err := asc.Decrypt(privateKey, encryptedSessionKey, bodyBytes)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBody))
 		ctx.Next()
 	}
