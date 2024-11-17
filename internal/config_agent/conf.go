@@ -1,10 +1,14 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"log"
+	"os"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/xoxloviwan/go-monitor/internal/helpers"
 )
 
 const (
@@ -21,6 +25,7 @@ var (
 	key            = flag.String("k", "", "key for encrypting and decrypting data, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
 	cryptoKey      = flag.String("crypto-key", "", "path to file with public key for encrypting data")
 	rateLimit      = flag.Int("l", rateLimitDefault, "number of outgoing requests at once")
+	config         = flag.String("c", "", "path to config file")
 )
 
 // Config represents the configuration for the agent.
@@ -41,11 +46,31 @@ type Config struct {
 	RateLimit int `envDefault:"1"`
 }
 
+type FileConfig struct {
+	Config
+	ReportIntervalT helpers.Duration `json:"report_interval"`
+	PollIntervalT   helpers.Duration `json:"poll_interval"`
+}
+
+type ConfigFull struct {
+	Config
+	// Path to config file
+	ConfigPath string `env:"CONFIG" envDefault:""`
+}
+
 // InitConfig initializes a new Config instance.
 //
 // The instance is initialized with the given environment variables and command-line flags.
 func InitConfig() Config {
-	cfg := Config{}
+	cfgDefaults := Config{
+		Address:        addressDefault,
+		PollInterval:   pollIntervalDefault,
+		ReportInterval: reportIntervalDefault,
+		RateLimit:      rateLimitDefault,
+		Key:            "",
+		CryptoKey:      "",
+	}
+	cfg := ConfigFull{}
 	opts := env.Options{UseFieldNameByDefault: true}
 	if err := env.ParseWithOptions(&cfg, opts); err != nil {
 		log.Fatalf("Error parsing env: %v", err)
@@ -54,26 +79,67 @@ func InitConfig() Config {
 	if len(flag.Args()) > 0 {
 		log.Fatal("Too many arguments")
 	}
-	if cfg.Address != *address && cfg.Address == addressDefault {
-		cfg.Address = *address
+	if cfg.ConfigPath != *config && cfg.ConfigPath == "" {
+		cfg.ConfigPath = *config
 	}
-	pollRate := int64(*pollInterval)
-	if cfg.PollInterval != pollRate && cfg.PollInterval == pollIntervalDefault {
-		cfg.PollInterval = pollRate
+	if cfg.ConfigPath != "" {
+		cfgFile := configFromFile(cfg.ConfigPath)
+		redefineConf(&cfgDefaults, cfgFile)
 	}
-	reportRate := int64(*reportInterval)
-	if cfg.ReportInterval != reportRate && cfg.ReportInterval == reportIntervalDefault {
-		cfg.ReportInterval = reportRate
-	}
-	if cfg.Key != *key && cfg.Key == "" {
-		cfg.Key = *key
-	}
-	if cfg.CryptoKey != *cryptoKey && cfg.CryptoKey == "" {
-		cfg.CryptoKey = *cryptoKey
-	}
-	if cfg.RateLimit != int(*rateLimit) && cfg.RateLimit == rateLimitDefault {
-		cfg.RateLimit = int(*rateLimit)
-	}
-	return cfg
 
+	redefineConf(&cfgDefaults, Config{
+		Address:        *address,
+		PollInterval:   int64(*pollInterval),
+		ReportInterval: int64(*reportInterval),
+		RateLimit:      *rateLimit,
+		Key:            *key,
+		CryptoKey:      *cryptoKey,
+	})
+	redefineConf(&cfgDefaults, cfg.Config)
+	log.Print(cfgDefaults)
+	return cfgDefaults
+}
+
+func redefineConf(cfg *Config, leadCfg Config) {
+	log.Println(cfg.Address)
+	if cfg.Address != leadCfg.Address && leadCfg.Address != addressDefault {
+		cfg.Address = leadCfg.Address
+	}
+
+	if cfg.PollInterval != leadCfg.PollInterval && leadCfg.PollInterval != pollIntervalDefault {
+		cfg.PollInterval = leadCfg.PollInterval
+	}
+
+	if cfg.ReportInterval != leadCfg.ReportInterval && leadCfg.ReportInterval != reportIntervalDefault {
+		cfg.ReportInterval = leadCfg.ReportInterval
+	}
+	if cfg.Key != leadCfg.Key && leadCfg.Key != "" {
+		cfg.Key = leadCfg.Key
+	}
+	if cfg.CryptoKey != leadCfg.CryptoKey && leadCfg.CryptoKey != "" {
+		cfg.CryptoKey = leadCfg.CryptoKey
+	}
+	if cfg.RateLimit != leadCfg.RateLimit && leadCfg.RateLimit != rateLimitDefault {
+		cfg.RateLimit = leadCfg.RateLimit
+	}
+}
+
+func configFromFile(path string) Config {
+	var cfgFile FileConfig
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Println(err)
+		return Config{}
+	}
+	err = json.Unmarshal(data, &cfgFile)
+	if err != nil {
+		log.Println(err)
+		return Config{}
+	}
+	cfgFile.Config.ReportInterval = int64(cfgFile.ReportIntervalT.Seconds())
+	cfgFile.Config.PollInterval = int64(cfgFile.PollIntervalT.Seconds())
+	if !bytes.Contains(data, []byte("rate_limit")) {
+		cfgFile.Config.RateLimit = rateLimitDefault
+	}
+	return cfgFile.Config
 }
