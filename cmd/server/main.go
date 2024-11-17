@@ -1,18 +1,25 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_server"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 	cfg := conf.InitConfig()
-	err := api.RunServer(cfg)
+	r := api.NewRouter()
+	err := api.RunServer(r, cfg)
 	if err != nil {
-		slog.Error("Server down", slog.Any("error", err))
-		os.Exit(1)
+		api.LogFatal("Server down", slog.Any("error", err))
 	}
 }

@@ -1,6 +1,6 @@
 package metrictypes
 
-//go:generate easyjson -all api.go
+//go:generate easyjson -output_filename api_easyjson_generated.go -all api.go
 
 //easyjson:json
 type Metrics struct {

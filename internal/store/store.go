@@ -11,6 +11,8 @@ import (
 	mtr "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+//go:generate easyjson -output_filename store_easyjson_generated.go -all store.go
+
 // CounterName is a constant representing the counter metric type.
 const CounterName = "counter"
 

@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(in *jlexer.Lexer, out *MetricsList) {
+func easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(in *jlexer.Lexer, out *MetricsList) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		in.Skip()
@@ -45,7 +45,7 @@ func easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(in *
 		in.Consumed()
 	}
 }
-func easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(out *jwriter.Writer, in MetricsList) {
+func easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(out *jwriter.Writer, in MetricsList) {
 	if in == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
 		out.RawString("null")
 	} else {
@@ -63,27 +63,27 @@ func easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(out 
 // MarshalJSON supports json.Marshaler interface
 func (v MetricsList) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(&w, v)
+	easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricsList) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(w, v)
+	easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *MetricsList) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(&r, v)
+	easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricsList) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(l, v)
+	easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes(l, v)
 }
-func easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(in *jlexer.Lexer, out *Metrics) {
+func easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(in *jlexer.Lexer, out *Metrics) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -136,7 +136,7 @@ func easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(in 
 		in.Consumed()
 	}
 }
-func easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(out *jwriter.Writer, in Metrics) {
+func easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(out *jwriter.Writer, in Metrics) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -166,23 +166,23 @@ func easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(out
 // MarshalJSON supports json.Marshaler interface
 func (v Metrics) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(&w, v)
+	easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Metrics) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonC1cedd36EncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(w, v)
+	easyjsonF63e7afcEncodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Metrics) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(&r, v)
+	easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Metrics) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonC1cedd36DecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(l, v)
+	easyjsonF63e7afcDecodeGithubComXoxloviwanGoMonitorInternalMetricsTypes1(l, v)
 }

@@ -20,6 +20,12 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func send(workerID int, adr string, msgs api.MetricsList, key string) (err error) {
 	cl := &http.Client{}
 
@@ -140,6 +146,7 @@ func SplitBatch(source <-chan api.Metrics, poolSize int) []<-chan api.Metrics {
 }
 
 func main() {
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 	cfg := conf.InitConfig()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	defer pollTicker.Stop()
