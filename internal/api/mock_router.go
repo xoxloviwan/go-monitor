@@ -37,21 +37,17 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 }
 
 // Run mocks base method.
-func (m *MockRouter) Run(arg0 ...string) error {
+func (m *MockRouter) Run(arg0 string) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{}
-	for _, a := range arg0 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Run", varargs...)
+	ret := m.ctrl.Call(m, "Run", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockRouterMockRecorder) Run(arg0 ...interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) Run(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockRouter)(nil).Run), arg0...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockRouter)(nil).Run), arg0)
 }
 
 // SetupRouter mocks base method.
@@ -64,4 +60,16 @@ func (m *MockRouter) SetupRouter(arg0 gin.HandlerFunc, arg1 ReaderWriter, arg2 s
 func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRouter", reflect.TypeOf((*MockRouter)(nil).SetupRouter), arg0, arg1, arg2, arg3, arg4)
+}
+
+// Shutdown mocks base method.
+func (m *MockRouter) Shutdown() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Shutdown")
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockRouterMockRecorder) Shutdown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockRouter)(nil).Shutdown))
 }

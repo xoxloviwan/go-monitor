@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -79,15 +82,28 @@ func RunServer(r Router, cfg config.Config) error {
 		}
 	}()
 
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	if cfg.DatabaseDSN != "" || cfg.FileStoragePath == "" {
-		err := <-wasError
-		return err
+		for {
+			select {
+			case err := <-wasError:
+				return err
+			case <-quit:
+				r.Shutdown()
+				return nil
+			}
+		}
 	}
 
 	// NewTicker бросает panic в случае, если интервал меньше нуля.
 	if cfg.StoreInterval == 0 {
 		for {
 			select {
+			case <-quit:
+				r.Shutdown()
+				return nil
 			case err := <-wasError:
 				return err
 			default:
@@ -108,6 +124,9 @@ func RunServer(r Router, cfg config.Config) error {
 			if err != nil {
 				return err
 			}
+		case <-quit:
+			r.Shutdown()
+			return nil
 		case err := <-wasError:
 			return err
 		}
@@ -142,20 +161,22 @@ type Storage interface {
 // Router interface for API server.
 type Router interface {
 	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
-	Run(addr ...string) error
+	Run(addr string) error
+	Shutdown()
 }
 
-// RouterImpl is wrap for gin.Engine.
+// RouterImpl is wrap for gin.Engine and http.Server
 type RouterImpl struct {
 	*gin.Engine
+	srv *http.Server
 }
 
 // NewRouter returns a new Router instance.
 func NewRouter() *RouterImpl {
-	return &RouterImpl{gin.New()}
+	return &RouterImpl{gin.New(), nil}
 }
 
-// SetupRouter returns a new gin.Engine with the given routes and middleware.
+// SetupRouter sets up routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
 func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey) {
@@ -181,4 +202,27 @@ func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, log
 func backupData(b Backuper, path string) error {
 	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
 	return b.SaveToFile(path)
+}
+
+func (r *RouterImpl) Run(addr string) error {
+	r.srv = &http.Server{
+		Addr:    addr,
+		Handler: r.Handler(),
+	}
+	return r.srv.ListenAndServe()
+}
+
+func (r *RouterImpl) Shutdown() {
+	slog.Info("Shutdown Server ...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.srv.Shutdown(ctx); err != nil {
+		slog.Error("Server Shutdown:", slog.Any("error", err))
+		return
+	}
+	select {
+	case <-ctx.Done():
+		slog.Info("timeout of 5 seconds.")
+	}
+	slog.Info("Server exiting")
 }
