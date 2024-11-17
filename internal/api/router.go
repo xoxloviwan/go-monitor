@@ -214,10 +214,8 @@ func (r *RouterImpl) Shutdown() {
 		slog.Error("Server Shutdown:", slog.Any("error", err))
 		return
 	}
-	select {
-	case <-ctx.Done():
-		return // wait 5 seconds and exit
-	}
+	<-ctx.Done()
+	// wait 5 seconds and exit
 }
 
 func backupData(b Backuper, path string) error {
