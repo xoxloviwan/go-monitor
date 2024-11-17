@@ -199,11 +199,6 @@ func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, log
 	r.GET("/ping", ping)
 }
 
-func backupData(b Backuper, path string) error {
-	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
-	return b.SaveToFile(path)
-}
-
 func (r *RouterImpl) Run(addr string) error {
 	r.srv = &http.Server{
 		Addr:    addr,
@@ -225,4 +220,9 @@ func (r *RouterImpl) Shutdown() {
 		slog.Info("timeout of 5 seconds.")
 	}
 	slog.Info("Server exiting")
+}
+
+func backupData(b Backuper, path string) error {
+	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
+	return b.SaveToFile(path)
 }
