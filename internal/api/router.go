@@ -208,7 +208,6 @@ func (r *RouterImpl) Run(addr string) error {
 }
 
 func (r *RouterImpl) Shutdown() {
-	slog.Info("Shutdown Server ...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := r.srv.Shutdown(ctx); err != nil {
@@ -217,12 +216,10 @@ func (r *RouterImpl) Shutdown() {
 	}
 	select {
 	case <-ctx.Done():
-		slog.Info("timeout of 5 seconds.")
+		return // wait 5 seconds and exit
 	}
-	slog.Info("Server exiting")
 }
 
 func backupData(b Backuper, path string) error {
-	slog.Info(fmt.Sprintf("Backup to file %s ...", path))
 	return b.SaveToFile(path)
 }
