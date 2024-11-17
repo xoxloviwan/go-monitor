@@ -17,7 +17,7 @@ import (
 	"crypto/sha256"
 
 	"github.com/gin-gonic/gin"
-	asc "github.com/xoxloviwan/go-monitor/internal/asym_crypto"
+	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 )
 
 // logger struct used in package

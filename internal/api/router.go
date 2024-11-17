@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	asc "github.com/xoxloviwan/go-monitor/internal/asym_crypto"
+	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 

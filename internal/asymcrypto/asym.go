@@ -1,4 +1,4 @@
-package asym_crypto
+package asymcrypto
 
 import (
 	"crypto/aes"

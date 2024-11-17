@@ -19,7 +19,7 @@ import (
 	"log/slog"
 
 	"github.com/mailru/easyjson"
-	asc "github.com/xoxloviwan/go-monitor/internal/asym_crypto"
+	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
