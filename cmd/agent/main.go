@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"log/slog"
@@ -185,6 +188,9 @@ func main() {
 	var pollCount int64
 	// Получаем метрики сразу после инициализации. Таким образом метрики будут сразу доступны для отправки.
 	metrics := metrs.GetMetrics(pollCount)
+	var shutdown bool
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	for {
 		// Здесь произойдет lock и select разлочится событием, которое произойдет первым.
 		select {
@@ -215,6 +221,11 @@ func main() {
 			}
 			wg.Wait()
 			slog.Info("Jobs done")
+			if shutdown {
+				return
+			}
+		case <-quit:
+			shutdown = true
 		}
 	}
 }
