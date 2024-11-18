@@ -11,7 +11,10 @@ import (
 	"os"
 )
 
+// PrivateKey alias
 type PrivateKey = rsa.PrivateKey
+
+// PublicKey alias
 type PublicKey = rsa.PublicKey
 
 func getCommonKey(path string) (*pem.Block, error) {

@@ -48,11 +48,13 @@ type Config struct {
 	CryptoKey string `envDefault:"" json:"crypto_key"`
 }
 
+// FileConfig represents the json configuration in file
 type FileConfig struct {
 	Config
 	StoreIntervalT helpers.Duration `json:"store_interval"`
 }
 
+// ConfigFull represents the env configuration for the server with path to config file
 type ConfigFull struct {
 	Config
 	// Path to config file

@@ -46,12 +46,14 @@ type Config struct {
 	RateLimit int `envDefault:"1"`
 }
 
+// FileConfig represents the json configuration in file
 type FileConfig struct {
 	Config
 	ReportIntervalT helpers.Duration `json:"report_interval"`
 	PollIntervalT   helpers.Duration `json:"poll_interval"`
 }
 
+// ConfigFull represents the env configuration for the agent with path to config file
 type ConfigFull struct {
 	Config
 	// Path to config file

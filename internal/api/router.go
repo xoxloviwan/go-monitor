@@ -199,6 +199,7 @@ func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, log
 	r.GET("/ping", ping)
 }
 
+// Run starts the server listening on the specified address.
 func (r *RouterImpl) Run(addr string) error {
 	r.srv = &http.Server{
 		Addr:    addr,
@@ -207,6 +208,7 @@ func (r *RouterImpl) Run(addr string) error {
 	return r.srv.ListenAndServe()
 }
 
+// Shutdown gracefully shuts down the server.
 func (r *RouterImpl) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
