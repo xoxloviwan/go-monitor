@@ -188,7 +188,7 @@ func main() {
 	var pollCount int64
 	// Получаем метрики сразу после инициализации. Таким образом метрики будут сразу доступны для отправки.
 	metrics := metrs.GetMetrics(pollCount)
-	var shutdown bool
+	var wg sync.WaitGroup // Используем WaitGroup для ожидания, пока не закроются выходные каналы
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	for {
@@ -201,8 +201,7 @@ func main() {
 			msgCh := metrics.MakeMessages()
 			dests := SplitBatch(msgCh, cfg.RateLimit) // Fan Out
 
-			var wg sync.WaitGroup // Использовать WaitGroup для ожидания, пока
-			wg.Add(len(dests))    // не закроются выходные каналы
+			wg.Add(len(dests))
 			for i, ch := range dests {
 				go func(worker int, d <-chan api.Metrics) {
 					defer wg.Done()
@@ -221,11 +220,10 @@ func main() {
 			}
 			wg.Wait()
 			slog.Info("Jobs done")
-			if shutdown {
-				return
-			}
 		case <-quit:
-			shutdown = true
+			slog.Info("Shutdown signal received...")
+			wg.Wait()
+			return
 		}
 	}
 }
