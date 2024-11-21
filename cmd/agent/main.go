@@ -176,7 +176,7 @@ func main() {
 		var err error
 		publicKey, err = asc.GetPublicKey(cfg.CryptoKey)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Error getting public key: %v", err))
+			slog.Error("Error getting public key", "error", err)
 			publicKey = nil
 		}
 	}
@@ -211,10 +211,10 @@ func main() {
 						subbatch = append(subbatch, val)
 					}
 					if len(subbatch) > 0 {
-						slog.Info(fmt.Sprintf("worker #%d got %+v\n", worker, subbatch))
+						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
 						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey)
 						if err != nil {
-							slog.Error(fmt.Sprintf("worker #%d error: %s\n", worker, err.Error()))
+							slog.Error("Send error", "worker", worker, "error", err)
 						}
 					}
 				}(i, ch)
