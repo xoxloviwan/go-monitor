@@ -94,7 +94,7 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		slog.Warn(fmt.Sprintf("worker #%d: %s Retry %d ...", workerID, err.Error(), retry+1))
+		slog.Warn("Retry attempt", "worker", workerID, "error", err, "retry", retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
