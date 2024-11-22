@@ -113,6 +113,8 @@ func RunServer(r Router, cfg config.Config) error {
 	eg.Go(func() error {
 		// Ждем сигнала завершения.
 		<-quit
+		slog.Info("Shutdown Server...")
+		signal.Stop(quit)
 		close(quit) // Остановим периодическое сохранение данных в файл.
 		// Завершаем работу сервера.
 		return r.Shutdown()
@@ -135,6 +137,7 @@ func RunServer(r Router, cfg config.Config) error {
 						return fmt.Errorf("backup data error: %w", err)
 					}
 				case <-quit:
+					slog.Info("Shutdown backup ticker...")
 					return nil
 				}
 			}
