@@ -109,7 +109,6 @@ func InitConfig() Config {
 }
 
 func redefineConf(cfg *Config, leadCfg Config) {
-	log.Println(cfg.StoreInterval)
 	if cfg.Address != leadCfg.Address && leadCfg.Address != addressDefault {
 		cfg.Address = leadCfg.Address
 	}

@@ -48,6 +48,7 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	if err != nil {
 		return err
 	}
+	slog.Info("got", "worker", workerID, "body", body)
 	var sessionKey []byte
 	if publicKey != nil {
 		var err error
