@@ -63,9 +63,11 @@ func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3, arg4 inter
 }
 
 // Shutdown mocks base method.
-func (m *MockRouter) Shutdown() {
+func (m *MockRouter) Shutdown() error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Shutdown")
+	ret := m.ctrl.Call(m, "Shutdown")
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Shutdown indicates an expected call of Shutdown.

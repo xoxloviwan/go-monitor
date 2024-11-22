@@ -605,7 +605,7 @@ func TestRunServer(t *testing.T) {
 	anyErr := fmt.Errorf("error")
 	m.EXPECT().Run(cfg.Address).Return(anyErr).Times(1)
 	err := RunServer(m, cfg)
-	if err != anyErr {
+	if !errors.Is(errors.Unwrap(err), anyErr) {
 		t.Error(err)
 	}
 }

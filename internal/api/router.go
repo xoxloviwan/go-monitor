@@ -43,7 +43,7 @@ type Storage interface {
 type Router interface {
 	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
 	Run(addr string) error
-	Shutdown()
+	Shutdown() error
 }
 
 // RunServer runs the API server with the given configuration.
@@ -75,7 +75,7 @@ func RunServer(r Router, cfg config.Config) error {
 		dbs := store.NewDBStorage(db)
 		err = dbs.CreateTable()
 		if err != nil {
-			return fmt.Errorf("create table error: %v", err)
+			return fmt.Errorf("create table error: %w", err)
 		}
 		s = dbs
 	} else {
@@ -89,7 +89,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if cfg.Restore && cfg.FileStoragePath != "" {
 		if b, ok := s.(FileBackuper); ok {
 			if err := b.RestoreFromFile(cfg.FileStoragePath); err != nil {
-				return fmt.Errorf("backup data error: %v", err)
+				return fmt.Errorf("backup data error: %w", err)
 			}
 		}
 	}
@@ -98,7 +98,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if cfg.CryptoKey != "" {
 		var err error
 		if pKey, err = asc.GetPrivateKey(cfg.CryptoKey); err != nil {
-			return fmt.Errorf("get private key error: %v", err)
+			return fmt.Errorf("get private key error: %w", err)
 		}
 	}
 
@@ -109,12 +109,11 @@ func RunServer(r Router, cfg config.Config) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	// Запускаем сервер в отдельной горутине.
 	var eg errgroup.Group
 	eg.Go(func() error {
 		// Ждем сигнала завершения.
 		<-quit
-
+		close(quit) // Остановим периодическое сохранение данных в файл.
 		// Завершаем работу сервера.
 		return r.Shutdown()
 	})
@@ -133,7 +132,7 @@ func RunServer(r Router, cfg config.Config) error {
 				select {
 				case <-backupTicker.C:
 					if err := b.SaveToFile(cfg.FileStoragePath); err != nil {
-						return fmt.Errorf("backup data error: %v", err)
+						return fmt.Errorf("backup data error: %w", err)
 					}
 				case <-quit:
 					return nil
@@ -142,23 +141,25 @@ func RunServer(r Router, cfg config.Config) error {
 		})
 	}
 
+	// Запускаем сервер
 	if err := r.Run(cfg.Address); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("run server error: %v", err)
+			return fmt.Errorf("run server error: %w", err)
 		}
 	}
 
 	// Делем одноразовое сохранение данных в файл при завершении работы.
-	if b, ok := s.(FileBackuper); ok {
+	if b, ok := s.(FileBackuper); ok && cfg.FileStoragePath != "" {
 		if err := b.SaveToFile(cfg.FileStoragePath); err != nil {
-			return fmt.Errorf("backup data error: %v", err)
+			return fmt.Errorf("backup data error: %w", err)
 		}
 	}
 
 	// Ждем завершения всех горутин и возвращаем ошибку, если она произошла.
 	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("goroutines error: %v", err)
+		return fmt.Errorf("goroutines error: %w", err)
 	}
+	slog.Info("Service stopped")
 	return nil
 }
 
@@ -209,9 +210,5 @@ func (r *RouterImpl) Run(addr string) error {
 func (r *RouterImpl) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := r.srv.Shutdown(ctx); err != nil {
-		slog.Error("Server Shutdown:", slog.Any("error", err))
-		return err
-	}
-	return nil
+	return r.srv.Shutdown(ctx)
 }
