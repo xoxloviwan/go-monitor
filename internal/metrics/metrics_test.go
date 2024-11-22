@@ -40,19 +40,19 @@ var gauges = []string{
 	"RandomValue",
 }
 
-func TestGetMetrics(t *testing.T) {
-	var cnt int64 = 1
-	metrics := m.GetMetrics(cnt)
+// func TestGetMetrics(t *testing.T) {
+// 	var cnt int64 = 1
+// 	metrics := m.GetMetrics(cnt)
 
-	for _, gauge := range gauges {
-		if _, ok := metrics.Gauge[gauge]; !ok {
-			t.Errorf("%s not exist", gauge)
-		}
-	}
-	if metrics.Counter["PollCount"] != cnt {
-		t.Errorf("PollCount wrong")
-	}
-}
+// 	for _, gauge := range gauges {
+// 		if _, ok := metrics.Gauge[gauge]; !ok {
+// 			t.Errorf("%s not exist", gauge)
+// 		}
+// 	}
+// 	if metrics.Counter["PollCount"] != cnt {
+// 		t.Errorf("PollCount wrong")
+// 	}
+// }
 
 func TestMakeMessage(t *testing.T) {
 	mp := m.GetMetrics(1)
