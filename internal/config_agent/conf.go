@@ -81,7 +81,7 @@ func InitConfig() Config {
 	if len(flag.Args()) > 0 {
 		log.Fatal("Too many arguments")
 	}
-	if cfg.ConfigPath != *config && cfg.ConfigPath == "" {
+	if config != nil && cfg.ConfigPath != *config && cfg.ConfigPath == "" {
 		cfg.ConfigPath = *config
 	}
 	if cfg.ConfigPath != "" {

@@ -95,7 +95,7 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		slog.Warn(fmt.Sprintf("worker #%d: %s Retry %d ...", workerID, err.Error(), retry+1))
+		slog.Warn("Retry attempt", "worker", workerID, "error", err, "retry", retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
@@ -177,7 +177,7 @@ func main() {
 		var err error
 		publicKey, err = asc.GetPublicKey(cfg.CryptoKey)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Error getting public key: %v", err))
+			slog.Error("Error getting public key", "error", err)
 			publicKey = nil
 		}
 	}
@@ -189,7 +189,7 @@ func main() {
 	var pollCount int64
 	// Получаем метрики сразу после инициализации. Таким образом метрики будут сразу доступны для отправки.
 	metrics := metrs.GetMetrics(pollCount)
-	var shutdown bool
+	var wg sync.WaitGroup // Используем WaitGroup для ожидания, пока не закроются выходные каналы
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	for {
@@ -202,8 +202,7 @@ func main() {
 			msgCh := metrics.MakeMessages()
 			dests := SplitBatch(msgCh, cfg.RateLimit) // Fan Out
 
-			var wg sync.WaitGroup // Использовать WaitGroup для ожидания, пока
-			wg.Add(len(dests))    // не закроются выходные каналы
+			wg.Add(len(dests))
 			for i, ch := range dests {
 				go func(worker int, d <-chan api.Metrics) {
 					defer wg.Done()
@@ -212,21 +211,20 @@ func main() {
 						subbatch = append(subbatch, val)
 					}
 					if len(subbatch) > 0 {
-						slog.Info(fmt.Sprintf("worker #%d got %+v\n", worker, subbatch))
+						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
 						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey)
 						if err != nil {
-							slog.Error(fmt.Sprintf("worker #%d error: %s\n", worker, err.Error()))
+							slog.Error("Send error", "worker", worker, "error", err)
 						}
 					}
 				}(i, ch)
 			}
 			wg.Wait()
 			slog.Info("Jobs done")
-			if shutdown {
-				return
-			}
 		case <-quit:
-			shutdown = true
+			slog.Info("Shutdown signal received...")
+			wg.Wait()
+			return
 		}
 	}
 }
