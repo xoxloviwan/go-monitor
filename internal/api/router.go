@@ -89,7 +89,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if cfg.Restore && cfg.FileStoragePath != "" {
 		if b, ok := s.(FileBackuper); ok {
 			if err := b.RestoreFromFile(cfg.FileStoragePath); err != nil {
-				return fmt.Errorf("backup data error: %w", err)
+				slog.Error("restore data error", "path", cfg.FileStoragePath, "error", err) // fix autotests for iter9 if file not exist
 			}
 		}
 	}
@@ -134,7 +134,7 @@ func RunServer(r Router, cfg config.Config) error {
 				select {
 				case <-backupTicker.C:
 					if err := b.SaveToFile(cfg.FileStoragePath); err != nil {
-						return fmt.Errorf("backup data error: %w", err)
+						return fmt.Errorf("backup ticker data error: %w", err)
 					}
 				case <-quit:
 					slog.Info("Shutdown backup ticker...")
