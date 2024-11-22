@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,22 +13,49 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xoxloviwan/go-monitor/internal/store"
+	"golang.org/x/sync/errgroup"
+
 	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
-	"github.com/xoxloviwan/go-monitor/internal/store"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+// Backuper is an interface for backing up data.
+//
+// It provides a method for saving the data to a file.
+type FileBackuper interface {
+	SaveToFile(path string) error
+	RestoreFromFile(path string) error
+}
+
+// Storage is an interface that combines Backuper and DBStorage.
+//
+// It provides methods for backing up data and restoring data from a file.
+type Storage interface {
+	ReaderWriter
+}
+
+//go:generate mockgen -destination ./mock_router.go -package api github.com/xoxloviwan/go-monitor/internal/api Router
+
+// Router interface for API server.
+type Router interface {
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
+	Run(addr string) error
+	Shutdown()
+}
 
 // RunServer runs the API server with the given configuration.
 //
 // It sets up the routes, middleware, and logging, and starts the server.
 func RunServer(r Router, cfg config.Config) error {
-	var s DBStorage
-	var pingHandler gin.HandlerFunc
+	var (
+		s           Storage
+		pingHandler gin.HandlerFunc
+	)
 
-	var mems Storage = store.NewMemStorage()
-
+	// Если DSN не пустой, то используем базу данных.
 	if cfg.DatabaseDSN != "" {
 		db, err := sql.Open("pgx", cfg.DatabaseDSN)
 		if err != nil {
@@ -51,118 +79,87 @@ func RunServer(r Router, cfg config.Config) error {
 		}
 		s = dbs
 	} else {
+		// Если DSN пустой, то используем память.
 		pingHandler = func(c *gin.Context) {
 			c.Status(http.StatusOK)
 		}
-		s = mems
+		s = store.NewMemStorage()
 	}
+
 	if cfg.Restore && cfg.FileStoragePath != "" {
-		err := s.RestoreFromFile(cfg.FileStoragePath)
-		if err != nil {
-			slog.Warn("Restore failed", slog.Any("error", err.Error()))
+		if b, ok := s.(FileBackuper); ok {
+			if err := b.RestoreFromFile(cfg.FileStoragePath); err != nil {
+				return fmt.Errorf("backup data error: %v", err)
+			}
 		}
 	}
 
 	var pKey *asc.PrivateKey
 	if cfg.CryptoKey != "" {
 		var err error
-		pKey, err = asc.GetPrivateKey(cfg.CryptoKey)
-		if err != nil {
-			return err
+		if pKey, err = asc.GetPrivateKey(cfg.CryptoKey); err != nil {
+			return fmt.Errorf("get private key error: %v", err)
 		}
 	}
 
+	// Настраиваем маршруты.
 	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey)
 
-	wasError := make(chan error)
-	go func() {
-		err := r.Run(cfg.Address)
-		if err != nil {
-			wasError <- err
-		}
-	}()
-
+	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	if cfg.DatabaseDSN != "" || cfg.FileStoragePath == "" {
-		for {
-			select {
-			case err := <-wasError:
-				return err
-			case <-quit:
-				r.Shutdown()
-				return nil
-			}
-		}
-	}
+	// Запускаем сервер в отдельной горутине.
+	var eg errgroup.Group
+	eg.Go(func() error {
+		// Ждем сигнала завершения.
+		<-quit
 
-	// NewTicker бросает panic в случае, если интервал меньше нуля.
-	if cfg.StoreInterval == 0 {
-		for {
-			select {
-			case <-quit:
-				r.Shutdown()
-				return nil
-			case err := <-wasError:
-				return err
-			default:
-				err := backupData(mems, cfg.FileStoragePath)
-				if err != nil {
-					return err
+		// Завершаем работу сервера.
+		return r.Shutdown()
+	})
+
+	// Запускаем периодическое сохранение данных в файл.
+	var (
+		b  FileBackuper
+		ok bool
+	)
+	// Если объект реализует интерфейс FileBackuper, то сохраняем данные в файл.
+	if b, ok = s.(FileBackuper); ok && cfg.StoreInterval > 0 && cfg.FileStoragePath != "" {
+		eg.Go(func() error {
+			backupTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
+			defer backupTicker.Stop()
+			for {
+				select {
+				case <-backupTicker.C:
+					if err := b.SaveToFile(cfg.FileStoragePath); err != nil {
+						return fmt.Errorf("backup data error: %v", err)
+					}
+				case <-quit:
+					return nil
 				}
 			}
+		})
+	}
+
+	if err := r.Run(cfg.Address); err != nil {
+		if !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("run server error: %v", err)
 		}
 	}
 
-	backupTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
-	defer backupTicker.Stop()
-	for {
-		select {
-		case <-backupTicker.C:
-			err := backupData(mems, cfg.FileStoragePath)
-			if err != nil {
-				return err
-			}
-		case <-quit:
-			r.Shutdown()
-			return nil
-		case err := <-wasError:
-			return err
+	// Делем одноразовое сохранение данных в файл при завершении работы.
+	if b, ok := s.(FileBackuper); ok {
+		if err := b.SaveToFile(cfg.FileStoragePath); err != nil {
+			return fmt.Errorf("backup data error: %v", err)
 		}
 	}
-}
 
-// Backuper is an interface for backing up data.
-//
-// It provides a method for saving the data to a file.
-type Backuper interface {
-	SaveToFile(path string) error
-}
-
-// DBStorage is an interface for database storage.
-//
-// It provides methods for restoring data from a file and implementing the ReaderWriter interface.
-type DBStorage interface {
-	RestoreFromFile(path string) error
-	ReaderWriter
-}
-
-// Storage is an interface that combines Backuper and DBStorage.
-//
-// It provides methods for backing up data and restoring data from a file.
-type Storage interface {
-	Backuper
-	DBStorage
-}
-
-//go:generate mockgen -destination ./mock_router.go -package api github.com/xoxloviwan/go-monitor/internal/api Router
-
-// Router interface for API server.
-type Router interface {
-	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
-	Run(addr string) error
-	Shutdown()
+	// Ждем завершения всех горутин и возвращаем ошибку, если она произошла.
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("goroutines error: %v", err)
+	}
+	return nil
 }
 
 // RouterImpl is wrap for gin.Engine and http.Server
@@ -209,17 +206,12 @@ func (r *RouterImpl) Run(addr string) error {
 }
 
 // Shutdown gracefully shuts down the server.
-func (r *RouterImpl) Shutdown() {
+func (r *RouterImpl) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := r.srv.Shutdown(ctx); err != nil {
 		slog.Error("Server Shutdown:", slog.Any("error", err))
-		return
+		return err
 	}
-	<-ctx.Done()
-	// wait 5 seconds and exit
-}
-
-func backupData(b Backuper, path string) error {
-	return b.SaveToFile(path)
+	return nil
 }
