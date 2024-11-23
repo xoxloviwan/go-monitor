@@ -38,6 +38,8 @@ func GetMetrics(PollCount int64) *MetricsPool {
 		cpuUtilization, err := cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
 		if err != nil {
 			slog.Error("Getting cpu utilization failed", "error", err)
+			wg.Done()
+			return
 		}
 		cpuUtilization1 = cpuUtilization[1]
 		wg.Done()
