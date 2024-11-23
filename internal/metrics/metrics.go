@@ -20,24 +20,18 @@ import (
 // It provides methods for getting metrics and making messages.
 type MetricsPool store.MemStorage
 
-type MetricsSync struct {
-	vMem           *mem.VirtualMemoryStat
-	cpuUtilization float64
-	MemStats       runtime.MemStats
-}
-
 // GetMetrics returns a new MetricsPool instance.
 //
 // The instance is initialized with the given poll count.
 func GetMetrics(PollCount int64) *MetricsPool {
 
-	var tmp MetricsSync
 	var eg errgroup.Group
 
+	var MemStats runtime.MemStats
+	var cpuUtilization1 float64
+	var vMem *mem.VirtualMemoryStat
 	eg.Go(func() error {
-		var MemStats runtime.MemStats
 		runtime.ReadMemStats(&MemStats)
-		tmp.MemStats = MemStats
 		return nil
 	})
 
@@ -46,16 +40,16 @@ func GetMetrics(PollCount int64) *MetricsPool {
 		if err != nil {
 			return fmt.Errorf("Getting cpu utilization failed: %w", err)
 		}
-		tmp.cpuUtilization = cpuUtilization[1]
+		cpuUtilization1 = cpuUtilization[1]
 		return nil
 	})
 
 	eg.Go(func() error {
-		vMem, err := mem.VirtualMemory()
+		var err error
+		vMem, err = mem.VirtualMemory()
 		if err != nil {
 			return fmt.Errorf("Getting virtual memory failed: %w", err)
 		}
-		tmp.vMem = vMem
 		return nil
 	})
 
@@ -64,36 +58,36 @@ func GetMetrics(PollCount int64) *MetricsPool {
 	}
 	return &MetricsPool{
 		Gauge: map[string]float64{
-			"Alloc":           float64(tmp.MemStats.Alloc),
-			"BuckHashSys":     float64(tmp.MemStats.BuckHashSys),
-			"Frees":           float64(tmp.MemStats.Frees),
-			"GCCPUFraction":   tmp.MemStats.GCCPUFraction,
-			"GCSys":           float64(tmp.MemStats.GCSys),
-			"HeapAlloc":       float64(tmp.MemStats.HeapAlloc),
-			"HeapIdle":        float64(tmp.MemStats.HeapIdle),
-			"HeapInuse":       float64(tmp.MemStats.HeapInuse),
-			"HeapObjects":     float64(tmp.MemStats.HeapObjects),
-			"HeapReleased":    float64(tmp.MemStats.HeapReleased),
-			"HeapSys":         float64(tmp.MemStats.HeapSys),
-			"LastGC":          float64(tmp.MemStats.LastGC),
-			"Lookups":         float64(tmp.MemStats.Lookups),
-			"MCacheInuse":     float64(tmp.MemStats.MCacheInuse),
-			"MCacheSys":       float64(tmp.MemStats.MCacheSys),
-			"MSpanInuse":      float64(tmp.MemStats.MSpanInuse),
-			"MSpanSys":        float64(tmp.MemStats.MSpanSys),
-			"Mallocs":         float64(tmp.MemStats.Mallocs),
-			"NextGC":          float64(tmp.MemStats.NextGC),
-			"NumForcedGC":     float64(tmp.MemStats.NumForcedGC),
-			"NumGC":           float64(tmp.MemStats.NumGC),
-			"OtherSys":        float64(tmp.MemStats.OtherSys),
-			"PauseTotalNs":    float64(tmp.MemStats.PauseTotalNs),
-			"StackInuse":      float64(tmp.MemStats.StackInuse),
-			"StackSys":        float64(tmp.MemStats.StackSys),
-			"Sys":             float64(tmp.MemStats.Sys),
-			"TotalAlloc":      float64(tmp.MemStats.TotalAlloc),
-			"TotalMemory":     float64(tmp.vMem.Total),
-			"FreeMemory":      float64(tmp.vMem.Free),
-			"CPUutilization1": tmp.cpuUtilization,
+			"Alloc":           float64(MemStats.Alloc),
+			"BuckHashSys":     float64(MemStats.BuckHashSys),
+			"Frees":           float64(MemStats.Frees),
+			"GCCPUFraction":   MemStats.GCCPUFraction,
+			"GCSys":           float64(MemStats.GCSys),
+			"HeapAlloc":       float64(MemStats.HeapAlloc),
+			"HeapIdle":        float64(MemStats.HeapIdle),
+			"HeapInuse":       float64(MemStats.HeapInuse),
+			"HeapObjects":     float64(MemStats.HeapObjects),
+			"HeapReleased":    float64(MemStats.HeapReleased),
+			"HeapSys":         float64(MemStats.HeapSys),
+			"LastGC":          float64(MemStats.LastGC),
+			"Lookups":         float64(MemStats.Lookups),
+			"MCacheInuse":     float64(MemStats.MCacheInuse),
+			"MCacheSys":       float64(MemStats.MCacheSys),
+			"MSpanInuse":      float64(MemStats.MSpanInuse),
+			"MSpanSys":        float64(MemStats.MSpanSys),
+			"Mallocs":         float64(MemStats.Mallocs),
+			"NextGC":          float64(MemStats.NextGC),
+			"NumForcedGC":     float64(MemStats.NumForcedGC),
+			"NumGC":           float64(MemStats.NumGC),
+			"OtherSys":        float64(MemStats.OtherSys),
+			"PauseTotalNs":    float64(MemStats.PauseTotalNs),
+			"StackInuse":      float64(MemStats.StackInuse),
+			"StackSys":        float64(MemStats.StackSys),
+			"Sys":             float64(MemStats.Sys),
+			"TotalAlloc":      float64(MemStats.TotalAlloc),
+			"TotalMemory":     float64(vMem.Total),
+			"FreeMemory":      float64(vMem.Free),
+			"CPUutilization1": cpuUtilization1,
 			"RandomValue":     rand.Float64(),
 		},
 		Counter: map[string]int64{
