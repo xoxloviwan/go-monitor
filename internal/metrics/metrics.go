@@ -1,15 +1,14 @@
 package metrics
 
 import (
-	"fmt"
 	"math/rand"
 	"runtime"
+	"sync"
 
 	"log/slog"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
-	"golang.org/x/sync/errgroup"
 
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 	"github.com/xoxloviwan/go-monitor/internal/store"
@@ -24,38 +23,35 @@ type MetricsPool store.MemStorage
 //
 // The instance is initialized with the given poll count.
 func GetMetrics(PollCount int64) *MetricsPool {
-
-	var eg errgroup.Group
-
-	var MemStats runtime.MemStats
+	var wg sync.WaitGroup
 	var cpuUtilization1 float64
+	var MemStats runtime.MemStats
 	var vMem *mem.VirtualMemoryStat
-	eg.Go(func() error {
-		runtime.ReadMemStats(&MemStats)
-		return nil
-	})
+	wg.Add(3)
 
-	eg.Go(func() error {
+	go func() {
+		runtime.ReadMemStats(&MemStats)
+		wg.Done()
+	}()
+
+	go func() {
 		cpuUtilization, err := cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
 		if err != nil {
-			return fmt.Errorf("Getting cpu utilization failed: %w", err)
+			slog.Error("Getting cpu utilization failed", "error", err)
 		}
 		cpuUtilization1 = cpuUtilization[1]
-		return nil
-	})
+		wg.Done()
+	}()
 
-	eg.Go(func() error {
+	go func() {
 		var err error
 		vMem, err = mem.VirtualMemory()
 		if err != nil {
-			return fmt.Errorf("Getting virtual memory failed: %w", err)
+			slog.Error("Getting virtual memory failed:", "error", err)
 		}
-		return nil
-	})
-
-	if err := eg.Wait(); err != nil {
-		slog.Error("Error getting metrics", "error", err)
-	}
+		wg.Done()
+	}()
+	wg.Wait()
 	return &MetricsPool{
 		Gauge: map[string]float64{
 			"Alloc":           float64(MemStats.Alloc),
