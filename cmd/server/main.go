@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/xoxloviwan/go-monitor/internal/api"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_server"
@@ -20,6 +19,6 @@ func main() {
 	r := api.NewRouter()
 	err := api.RunServer(r, cfg)
 	if err != nil {
-		api.LogFatal("Server down", slog.Any("error", err))
+		api.LogFatal("Server down", "error", err)
 	}
 }

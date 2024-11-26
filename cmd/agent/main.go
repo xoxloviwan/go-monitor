@@ -9,12 +9,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
+	"log/slog"
+
 	"github.com/mailru/easyjson"
+	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
@@ -26,7 +31,14 @@ var (
 	buildCommit  = "N/A"
 )
 
-func send(workerID int, adr string, msgs api.MetricsList, key string) (err error) {
+// send
+//
+// workerID - идентификатор потока
+// adr - адрес сервера
+// msgs - список метрик
+// key - ключ подписи
+// publicKey - RSA публичный ключ для шифрования сообщения
+func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey *asc.PublicKey) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -35,6 +47,15 @@ func send(workerID int, adr string, msgs api.MetricsList, key string) (err error
 	body, err = easyjson.Marshal(&msgs)
 	if err != nil {
 		return err
+	}
+	slog.Info("got", "worker", workerID, "body", body)
+	var sessionKey []byte
+	if publicKey != nil {
+		var err error
+		sessionKey, body, err = asc.Encrypt(publicKey, body)
+		if err != nil {
+			return err
+		}
 	}
 	var sign string
 	if key != "" {
@@ -57,6 +78,9 @@ func send(workerID int, adr string, msgs api.MetricsList, key string) (err error
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	if sessionKey != nil {
+		req.Header.Set("X-Key", hex.EncodeToString(sessionKey))
+	}
 
 	if key != "" {
 		req.Header.Set("HashSHA256", sign)
@@ -71,7 +95,7 @@ func send(workerID int, adr string, msgs api.MetricsList, key string) (err error
 		}
 		after := (retry+1)*2 - 1
 		time.Sleep(time.Duration(after) * time.Second)
-		log.Printf("worker #%d: %s Retry %d ...", workerID, err.Error(), retry+1)
+		slog.Warn("Retry attempt", "worker", workerID, "error", err, "retry", retry+1)
 		response, err = cl.Do(req)
 		retry++
 	}
@@ -148,6 +172,15 @@ func SplitBatch(source <-chan api.Metrics, poolSize int) []<-chan api.Metrics {
 func main() {
 	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 	cfg := conf.InitConfig()
+	var publicKey *asc.PublicKey
+	if cfg.CryptoKey != "" {
+		var err error
+		publicKey, err = asc.GetPublicKey(cfg.CryptoKey)
+		if err != nil {
+			slog.Error("Error getting public key", "error", err)
+			publicKey = nil
+		}
+	}
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	defer pollTicker.Stop()
 	sendTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
@@ -156,6 +189,9 @@ func main() {
 	var pollCount int64
 	// Получаем метрики сразу после инициализации. Таким образом метрики будут сразу доступны для отправки.
 	metrics := metrs.GetMetrics(pollCount)
+	var wg sync.WaitGroup // Используем WaitGroup для ожидания, пока не закроются выходные каналы
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	for {
 		// Здесь произойдет lock и select разлочится событием, которое произойдет первым.
 		select {
@@ -166,8 +202,7 @@ func main() {
 			msgCh := metrics.MakeMessages()
 			dests := SplitBatch(msgCh, cfg.RateLimit) // Fan Out
 
-			var wg sync.WaitGroup // Использовать WaitGroup для ожидания, пока
-			wg.Add(len(dests))    // не закроются выходные каналы
+			wg.Add(len(dests))
 			for i, ch := range dests {
 				go func(worker int, d <-chan api.Metrics) {
 					defer wg.Done()
@@ -176,16 +211,20 @@ func main() {
 						subbatch = append(subbatch, val)
 					}
 					if len(subbatch) > 0 {
-						log.Printf("worker #%d got %+v\n", worker, subbatch)
-						err := send(worker, cfg.Address, subbatch, cfg.Key)
+						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
+						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey)
 						if err != nil {
-							log.Printf("worker #%d error: %s\n", worker, err.Error())
+							slog.Error("Send error", "worker", worker, "error", err)
 						}
 					}
 				}(i, ch)
 			}
 			wg.Wait()
-			log.Println("Jobs done")
+			slog.Info("Jobs done")
+		case <-quit:
+			slog.Info("Shutdown signal received...")
+			wg.Wait()
+			return
 		}
 	}
 }

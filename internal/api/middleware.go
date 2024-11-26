@@ -13,14 +13,22 @@ import (
 	"time"
 
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 
 	"github.com/gin-gonic/gin"
+	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 )
 
 // logger struct used in package
 var Log *slog.Logger
 var lvl *slog.LevelVar
+
+// LogFatal logs an error message and exits the program.
+func LogFatal(msg string, args ...any) {
+	Log.Error(msg, args...)
+	os.Exit(1)
+}
 
 var reqID = 0
 
@@ -221,6 +229,37 @@ func verifyHash(key []byte) gin.HandlerFunc {
 			return
 		}
 		ctx.Writer = newSigningWriter(ctx.Writer, key)
+		ctx.Next()
+	}
+}
+
+func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		key := ctx.Request.Header.Get("X-Key")
+		if key == "" {
+			ctx.Next()
+			return
+		}
+		encryptedSessionKey, err := hex.DecodeString(key)
+		if err != nil {
+			ctx.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		bodyBytes, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		if len(bodyBytes) == 0 {
+			ctx.Next()
+			return
+		}
+		decryptBody, err := asc.Decrypt(privateKey, encryptedSessionKey, bodyBytes)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBody))
 		ctx.Next()
 	}
 }

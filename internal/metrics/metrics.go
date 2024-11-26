@@ -3,7 +3,6 @@ package metrics
 import (
 	"math/rand"
 	"runtime"
-
 	"sync"
 
 	"log/slog"
@@ -25,27 +24,32 @@ type MetricsPool store.MemStorage
 // The instance is initialized with the given poll count.
 func GetMetrics(PollCount int64) *MetricsPool {
 	var wg sync.WaitGroup
-	var cpuUtilization []float64
+	var cpuUtilization1 float64
+	var MemStats runtime.MemStats
 	var vMem *mem.VirtualMemoryStat
-	var err error
 	wg.Add(3)
 
-	var MemStats runtime.MemStats
 	go func() {
 		runtime.ReadMemStats(&MemStats)
 		wg.Done()
 	}()
+
 	go func() {
-		cpuUtilization, err = cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
+		cpuUtilization, err := cpu.Percent(0, true) // вернет слайс с нагрузкой каждого ядра
 		if err != nil {
-			slog.Error("Getting cpu utilization failed:", slog.Any("error", err))
+			slog.Error("Getting cpu utilization failed", "error", err)
+			wg.Done()
+			return
 		}
+		cpuUtilization1 = cpuUtilization[1]
 		wg.Done()
 	}()
+
 	go func() {
+		var err error
 		vMem, err = mem.VirtualMemory()
 		if err != nil {
-			slog.Error("Getting virtual memory failed:", slog.Any("error", err))
+			slog.Error("Getting virtual memory failed:", "error", err)
 		}
 		wg.Done()
 	}()
@@ -81,7 +85,7 @@ func GetMetrics(PollCount int64) *MetricsPool {
 			"TotalAlloc":      float64(MemStats.TotalAlloc),
 			"TotalMemory":     float64(vMem.Total),
 			"FreeMemory":      float64(vMem.Free),
-			"CPUutilization1": cpuUtilization[1],
+			"CPUutilization1": cpuUtilization1,
 			"RandomValue":     rand.Float64(),
 		},
 		Counter: map[string]int64{

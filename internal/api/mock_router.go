@@ -5,6 +5,7 @@
 package api
 
 import (
+	rsa "crypto/rsa"
 	slog "log/slog"
 	reflect "reflect"
 
@@ -36,31 +37,41 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 }
 
 // Run mocks base method.
-func (m *MockRouter) Run(arg0 ...string) error {
+func (m *MockRouter) Run(arg0 string) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{}
-	for _, a := range arg0 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Run", varargs...)
+	ret := m.ctrl.Call(m, "Run", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockRouterMockRecorder) Run(arg0 ...interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) Run(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockRouter)(nil).Run), arg0...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockRouter)(nil).Run), arg0)
 }
 
 // SetupRouter mocks base method.
-func (m *MockRouter) SetupRouter(arg0 gin.HandlerFunc, arg1 ReaderWriter, arg2 slog.Level, arg3 []byte) {
+func (m *MockRouter) SetupRouter(arg0 gin.HandlerFunc, arg1 ReaderWriter, arg2 slog.Level, arg3 []byte, arg4 *rsa.PrivateKey) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetupRouter", arg0, arg1, arg2, arg3)
+	m.ctrl.Call(m, "SetupRouter", arg0, arg1, arg2, arg3, arg4)
 }
 
 // SetupRouter indicates an expected call of SetupRouter.
-func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRouter", reflect.TypeOf((*MockRouter)(nil).SetupRouter), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRouter", reflect.TypeOf((*MockRouter)(nil).SetupRouter), arg0, arg1, arg2, arg3, arg4)
+}
+
+// Shutdown mocks base method.
+func (m *MockRouter) Shutdown() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockRouterMockRecorder) Shutdown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockRouter)(nil).Shutdown))
 }
