@@ -5,8 +5,10 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -260,6 +262,23 @@ func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
 			return
 		}
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBody))
+		ctx.Next()
+	}
+}
+
+func checkIP(snet string) gin.HandlerFunc {
+	_, subnet, err := net.ParseCIDR(snet)
+	return func(ctx *gin.Context) {
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		ip := net.ParseIP(ctx.ClientIP())
+		if !subnet.Contains(ip) {
+			ctx.AbortWithError(http.StatusForbidden, fmt.Errorf("ip %s not allowed", ip))
+			return
+		}
+
 		ctx.Next()
 	}
 }

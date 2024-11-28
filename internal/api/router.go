@@ -41,7 +41,7 @@ type Storage interface {
 
 // Router interface for API server.
 type Router interface {
-	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet string)
 	Run(addr string) error
 	Shutdown() error
 }
@@ -103,7 +103,7 @@ func RunServer(r Router, cfg config.Config) error {
 	}
 
 	// Настраиваем маршруты.
-	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey)
+	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey, cfg.TrustedSubnet)
 
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
@@ -180,10 +180,13 @@ func NewRouter() *RouterImpl {
 // SetupRouter sets up routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
-func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey) {
+func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet string) {
 	handler := newHandler(dbstore)
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
+	if subnet != "" {
+		r.Use(checkIP(subnet))
+	}
 	if len(key) > 0 {
 		r.Use(verifyHash(key))
 	}

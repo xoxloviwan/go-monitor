@@ -39,7 +39,7 @@ var (
 // msgs - список метрик
 // key - ключ подписи
 // publicKey - RSA публичный ключ для шифрования сообщения
-func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey *asc.PublicKey) (err error) {
+func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey *asc.PublicKey, localIP string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -81,7 +81,9 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
-	// req.Header.Set("X-Real-IP")
+	if localIP != "" {
+		req.Header.Set("X-Real-IP", localIP)
+	}
 	if sessionKey != nil {
 		req.Header.Set("X-Key", hex.EncodeToString(sessionKey))
 	}
@@ -93,6 +95,9 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	var response *http.Response
 	retry := 0
 	response, err = cl.Do(req)
+	if err == nil && response.StatusCode != http.StatusOK {
+		slog.Warn("Unexpected status code", "worker", workerID, "status_code", response.StatusCode)
+	}
 	for err != nil && retry < 3 {
 		if response != nil {
 			response.Body.Close()
@@ -185,6 +190,7 @@ func main() {
 			publicKey = nil
 		}
 	}
+	localIP, _ := getIP()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	defer pollTicker.Stop()
 	sendTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
@@ -216,7 +222,7 @@ func main() {
 					}
 					if len(subbatch) > 0 {
 						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
-						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey)
+						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
 						if err != nil {
 							slog.Error("Send error", "worker", worker, "error", err)
 						}
@@ -233,40 +239,14 @@ func main() {
 	}
 }
 
-// func getIP() (net.IP, error) {
-// 	conn, err := net.Dial("udp", "8.8.8.8:80")
-// 	if err != nil {
-// 		return []byte{}, err
-// 	}
-// 	defer conn.Close()
-
-// 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-// 	return localAddr.IP, nil
-// }
-
 func getIP() (net.IP, error) {
-
-	ifs, err := net.Interfaces()
+	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		return []byte{}, err
 	}
-	var ip net.IP
-	for _, itf := range ifs {
-		addrs, err := itf.Addrs()
-		if err != nil {
-			return []byte{}, err
-		}
-		for _, address := range addrs {
-			// check the address type and if it is not a loopback the display it
-			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-				if ip4 := ipnet.IP.To4(); ip4 != nil {
-					ip = ip4
-					fmt.Println(ip, "\t\t\t", itf.Name)
-				}
-			}
-		}
-	}
-	return ip, nil
-	// return []byte{}, errors.New("are you connected to the network?")
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP, nil
 }

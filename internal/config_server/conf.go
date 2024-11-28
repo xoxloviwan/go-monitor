@@ -26,6 +26,7 @@ var (
 	key             = flag.String("k", "", "key for signing of response body data by SHA256 algorithm, e.g. 8c17b18522bf3f559864ac08f74c8ddb")
 	cryptoKey       = flag.String("crypto-key", "", "path to file with private key for decrypting request body")
 	config          = flag.String("c", "", "path to config file")
+	trustedSubnet   = flag.String("t", "", "Classless Inter-Domain Routing notation")
 )
 
 // Config represents the configuration for the server.
@@ -46,6 +47,8 @@ type Config struct {
 	Key string `envDefault:"" json:"key"`
 	// Path to file with private key for decrypting request body
 	CryptoKey string `envDefault:"" json:"crypto_key"`
+	// Classless Inter-Domain Routing notation
+	TrustedSubnet string `envDefault:"" json:"trusted_subnet"`
 }
 
 // FileConfig represents the json configuration in file
@@ -134,6 +137,10 @@ func redefineConf(cfg *Config, leadCfg Config) {
 
 	if cfg.CryptoKey != leadCfg.CryptoKey && leadCfg.CryptoKey != "" {
 		cfg.CryptoKey = leadCfg.CryptoKey
+	}
+
+	if cfg.TrustedSubnet != leadCfg.TrustedSubnet && leadCfg.TrustedSubnet != "" {
+		cfg.TrustedSubnet = leadCfg.TrustedSubnet
 	}
 }
 
