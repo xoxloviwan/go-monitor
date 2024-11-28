@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -67,6 +68,7 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	var gzbody []byte
 	gzbody, err = compressGzip(body)
 	if err != nil {
+		slog.Info("got", "worker", workerID, "body", body)
 		return err
 	}
 	var req *http.Request
@@ -74,10 +76,12 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	if err != nil {
 		return err
 	}
+	// net.IPAddr
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	// req.Header.Set("X-Real-IP")
 	if sessionKey != nil {
 		req.Header.Set("X-Key", hex.EncodeToString(sessionKey))
 	}
@@ -227,4 +231,42 @@ func main() {
 			return
 		}
 	}
+}
+
+// func getIP() (net.IP, error) {
+// 	conn, err := net.Dial("udp", "8.8.8.8:80")
+// 	if err != nil {
+// 		return []byte{}, err
+// 	}
+// 	defer conn.Close()
+
+// 	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+// 	return localAddr.IP, nil
+// }
+
+func getIP() (net.IP, error) {
+
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return []byte{}, err
+	}
+	var ip net.IP
+	for _, itf := range ifs {
+		addrs, err := itf.Addrs()
+		if err != nil {
+			return []byte{}, err
+		}
+		for _, address := range addrs {
+			// check the address type and if it is not a loopback the display it
+			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ip4 := ipnet.IP.To4(); ip4 != nil {
+					ip = ip4
+					fmt.Println(ip, "\t\t\t", itf.Name)
+				}
+			}
+		}
+	}
+	return ip, nil
+	// return []byte{}, errors.New("are you connected to the network?")
 }
