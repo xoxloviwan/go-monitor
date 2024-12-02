@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -24,6 +25,10 @@ import (
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
+
+	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -49,7 +54,6 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	if err != nil {
 		return err
 	}
-	slog.Info("got", "worker", workerID, "body", body)
 	var sessionKey []byte
 	if publicKey != nil {
 		var err error
@@ -68,7 +72,6 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	var gzbody []byte
 	gzbody, err = compressGzip(body)
 	if err != nil {
-		slog.Info("got", "worker", workerID, "body", body)
 		return err
 	}
 	var req *http.Request
@@ -222,7 +225,12 @@ func main() {
 					}
 					if len(subbatch) > 0 {
 						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
-						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
+						var err error
+						if cfg.GRPC {
+							err = sendGRPC(worker, cfg.Address, subbatch)
+						} else {
+							err = send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
+						}
 						if err != nil {
 							slog.Error("Send error", "worker", worker, "error", err)
 						}
@@ -249,4 +257,43 @@ func getIP() (net.IP, error) {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
 	return localAddr.IP, nil
+}
+
+func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
+	slog.Info("gRPC worker got task", "worker", worker)
+	// устанавливаем соединение с сервером
+	conn, err := grpc.NewClient(adr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	// получаем переменную интерфейсного типа MetricsServiceClient,
+	// через которую будем отправлять сообщения
+	c := pb.NewMetricsServiceClient(conn)
+	metrs := ConvMetrics(msgs)
+	MetricsResponse, err := c.AddMetrics(context.Background(), metrs)
+	if err != nil {
+		return err
+	}
+	slog.Info("gRPC worker got response", "worker", worker, "response", MetricsResponse)
+	return nil
+}
+
+func ConvMetricOne(m api.Metrics) *pb.Metric {
+	converted := pb.Metric{Id: m.ID, Type: m.MType}
+	if m.Delta != nil {
+		converted.Delta = *m.Delta
+	}
+	if m.Value != nil {
+		converted.Value = *m.Value
+	}
+	return &converted
+}
+
+func ConvMetrics(ms []api.Metrics) *pb.Metrics {
+	converted := make([]*pb.Metric, len(ms))
+	for i := range ms {
+		converted[i] = ConvMetricOne(ms[i])
+	}
+	return &pb.Metrics{Metrics: converted}
 }

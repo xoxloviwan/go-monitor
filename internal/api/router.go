@@ -6,15 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/soheilhy/cmux"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 
 	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
@@ -24,15 +28,13 @@ import (
 
 // Backuper is an interface for backing up data.
 //
-// It provides a method for saving the data to a file.
+// It provides methods for backing up data and restoring data from a file.
 type FileBackuper interface {
 	SaveToFile(path string) error
 	RestoreFromFile(path string) error
 }
 
-// Storage is an interface that combines Backuper and DBStorage.
-//
-// It provides methods for backing up data and restoring data from a file.
+// Storage is alias for ReaderWriter.
 type Storage interface {
 	ReaderWriter
 }
@@ -146,7 +148,7 @@ func RunServer(r Router, cfg config.Config) error {
 
 	// Запускаем сервер
 	if err := r.Run(cfg.Address); err != nil {
-		if !errors.Is(err, http.ErrServerClosed) {
+		if !errors.Is(err, http.ErrServerClosed) && !strings.Contains(err.Error(), "use of closed network connection") {
 			return fmt.Errorf("run server error: %w", err)
 		}
 	}
@@ -169,12 +171,13 @@ func RunServer(r Router, cfg config.Config) error {
 // RouterImpl is wrap for gin.Engine and http.Server
 type RouterImpl struct {
 	*gin.Engine
-	srv *http.Server
+	grpcS *grpc.Server
+	mux   cmux.CMux
 }
 
 // NewRouter returns a new Router instance.
 func NewRouter() *RouterImpl {
-	return &RouterImpl{gin.New(), nil}
+	return &RouterImpl{gin.New(), grpc.NewServer(), nil}
 }
 
 // SetupRouter sets up routes and middleware.
@@ -201,20 +204,30 @@ func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, log
 	r.GET("/", handler.list)
 
 	r.GET("/ping", ping)
+	registerGrpcService(r.grpcS, dbstore)
 }
 
 // Run starts the server listening on the specified address.
 func (r *RouterImpl) Run(addr string) error {
-	r.srv = &http.Server{
-		Addr:    addr,
+	httpS := &http.Server{
 		Handler: r.Handler(),
 	}
-	return r.srv.ListenAndServe()
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	r.mux = cmux.New(ln)
+	grpcL := r.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	httpL := r.mux.Match(cmux.HTTP1Fast())
+
+	go r.grpcS.Serve(grpcL)
+	go httpS.Serve(httpL)
+
+	return r.mux.Serve()
 }
 
 // Shutdown gracefully shuts down the server.
 func (r *RouterImpl) Shutdown() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return r.srv.Shutdown(ctx)
+	r.mux.Close()
+	return nil
 }
