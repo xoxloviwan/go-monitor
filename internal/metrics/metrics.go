@@ -107,14 +107,14 @@ func (s *MetricsPool) MakeMessages() chan api.Metrics {
 		for metricName, metricValue := range s.Gauge {
 			ch <- api.Metrics{
 				ID:    metricName,
-				MType: store.GaugeName,
+				MType: api.GaugeName,
 				Value: &metricValue,
 			}
 		}
 		for metricName, metricValue := range s.Counter {
 			ch <- api.Metrics{
 				ID:    metricName,
-				MType: store.CounterName,
+				MType: api.CounterName,
 				Delta: &metricValue,
 			}
 		}

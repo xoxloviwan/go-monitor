@@ -3,8 +3,8 @@ package api
 import (
 	// импортируем пакет со сгенерированными protobuf-файлами
 	"context"
-	"log/slog"
 
+	mcv "github.com/xoxloviwan/go-monitor/internal/metrics_convert"
 	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
 	"google.golang.org/grpc"
 )
@@ -17,16 +17,18 @@ type MetricsServer struct {
 	store Storage
 }
 
-func registerGrpcService(grpcS *grpc.Server, store Storage) {
-	pb.RegisterMetricsServiceServer(grpcS, &MetricsServer{store: store})
-}
-
 // AddUser реализует интерфейс добавления пользователя.
 func (srv *MetricsServer) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Metrics, error) {
-	slog.Info("AddUser", "in", in)
+	metrics := mcv.ConvMetricsInverse(in)
 	var response pb.Metrics
 
-	// if err := srv.store.AddMetrics(ctx, ); err != nil {
+	if err := srv.store.AddMetrics(ctx, metrics); err != nil {
+		return nil, err
+	}
 
 	return &response, nil
+}
+
+func registerGrpcService(grpcS *grpc.Server, store Storage) {
+	pb.RegisterMetricsServiceServer(grpcS, &MetricsServer{store: store})
 }

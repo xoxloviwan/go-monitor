@@ -26,6 +26,7 @@ import (
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 
+	mcv "github.com/xoxloviwan/go-monitor/internal/metrics_convert"
 	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -259,10 +260,29 @@ func getIP() (net.IP, error) {
 	return localAddr.IP, nil
 }
 
+// TODO: добавить логирование
+// func unaryGrpcHeader(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// 	start := time.Now()
+// 	slog.Info("gRPC Interceptor", "method", method)
+
+// 	// вызываем RPC-метод
+// 	err := invoker(ctx, method, req, reply, cc, opts...)
+
+// 	// выполняем действия после вызова метода
+// 	if err != nil {
+// 		slog.Error("gRPC Interceptor got error", "method", method, "error", err)
+// 	} else {
+// 		slog.Info("gRPC Interceptor", "method", method, "duration", time.Since(start))
+// 	}
+// 	return err
+// }
+
 func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
 	slog.Info("gRPC worker got task", "worker", worker)
 	// устанавливаем соединение с сервером
 	conn, err := grpc.NewClient(adr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// grpc.WithUnaryInterceptor(unaryGrpcHeader))
+
 	if err != nil {
 		return err
 	}
@@ -270,30 +290,11 @@ func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
 	// получаем переменную интерфейсного типа MetricsServiceClient,
 	// через которую будем отправлять сообщения
 	c := pb.NewMetricsServiceClient(conn)
-	metrs := ConvMetrics(msgs)
+	metrs := mcv.ConvMetrics(msgs)
 	MetricsResponse, err := c.AddMetrics(context.Background(), metrs)
 	if err != nil {
 		return err
 	}
 	slog.Info("gRPC worker got response", "worker", worker, "response", MetricsResponse)
 	return nil
-}
-
-func ConvMetricOne(m api.Metrics) *pb.Metric {
-	converted := pb.Metric{Id: m.ID, Type: m.MType}
-	if m.Delta != nil {
-		converted.Delta = *m.Delta
-	}
-	if m.Value != nil {
-		converted.Value = *m.Value
-	}
-	return &converted
-}
-
-func ConvMetrics(ms []api.Metrics) *pb.Metrics {
-	converted := make([]*pb.Metric, len(ms))
-	for i := range ms {
-		converted[i] = ConvMetricOne(ms[i])
-	}
-	return &pb.Metrics{Metrics: converted}
 }

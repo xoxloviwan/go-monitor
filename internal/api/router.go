@@ -217,7 +217,7 @@ func (r *RouterImpl) Run(addr string) error {
 		return err
 	}
 	r.mux = cmux.New(ln)
-	grpcL := r.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	grpcL := r.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
 	httpL := r.mux.Match(cmux.HTTP1Fast())
 
 	go r.grpcS.Serve(grpcL)
