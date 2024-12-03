@@ -15,9 +15,11 @@ message Metrics {
   repeated Metric metrics = 1;
 }
 
+message Response {
+  bool success = 1;
+}
+
 
 service MetricsService {
-  rpc AddMetrics(Metrics) returns (Metrics);
-  rpc GetMetrics(Metrics) returns (Metrics);
-  rpc List(Metrics) returns (Metrics);
+  rpc AddMetrics(Metrics) returns (Response);
 } 

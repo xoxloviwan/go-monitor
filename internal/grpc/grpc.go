@@ -24,9 +24,9 @@ type MetricsServer struct {
 }
 
 // AddUser реализует интерфейс добавления пользователя.
-func (srv *MetricsServer) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Metrics, error) {
+func (srv *MetricsServer) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Response, error) {
 	metrics := mcv.ConvMetricsInverse(in)
-	var response pb.Metrics
+	var response pb.Response
 
 	if err := srv.store.AddMetrics(ctx, metrics); err != nil {
 		return nil, err
