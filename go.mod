@@ -16,7 +16,6 @@ require (
 	github.com/pashagolub/pgxmock/v4 v4.3.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/shirou/gopsutil/v4 v4.24.7
-	github.com/soheilhy/cmux v0.1.5
 	golang.org/x/sync v0.8.0
 	golang.org/x/tools v0.26.0
 	google.golang.org/grpc v1.68.0

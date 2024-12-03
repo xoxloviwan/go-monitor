@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,10 +14,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/soheilhy/cmux"
 	"github.com/xoxloviwan/go-monitor/internal/store"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 
 	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
@@ -171,13 +168,12 @@ func RunServer(r Router, cfg config.Config) error {
 // RouterImpl is wrap for gin.Engine and http.Server
 type RouterImpl struct {
 	*gin.Engine
-	grpcS *grpc.Server
-	mux   cmux.CMux
+	srv *http.Server
 }
 
 // NewRouter returns a new Router instance.
 func NewRouter() *RouterImpl {
-	return &RouterImpl{gin.New(), grpc.NewServer(), nil}
+	return &RouterImpl{gin.New(), nil}
 }
 
 // SetupRouter sets up routes and middleware.
@@ -204,30 +200,20 @@ func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, log
 	r.GET("/", handler.list)
 
 	r.GET("/ping", ping)
-	registerGrpcService(r.grpcS, dbstore)
 }
 
 // Run starts the server listening on the specified address.
 func (r *RouterImpl) Run(addr string) error {
-	httpS := &http.Server{
+	r.srv = &http.Server{
+		Addr:    addr,
 		Handler: r.Handler(),
 	}
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	r.mux = cmux.New(ln)
-	grpcL := r.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
-	httpL := r.mux.Match(cmux.HTTP1Fast())
-
-	go r.grpcS.Serve(grpcL)
-	go httpS.Serve(httpL)
-
-	return r.mux.Serve()
+	return r.srv.ListenAndServe()
 }
 
 // Shutdown gracefully shuts down the server.
 func (r *RouterImpl) Shutdown() error {
-	r.mux.Close()
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return r.srv.Shutdown(ctx)
 }

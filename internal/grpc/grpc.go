@@ -1,13 +1,19 @@
-package api
+package grpcservice
 
 import (
 	// импортируем пакет со сгенерированными protobuf-файлами
 	"context"
 
 	mcv "github.com/xoxloviwan/go-monitor/internal/metrics_convert"
+	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
+
 	"google.golang.org/grpc"
 )
+
+type Storage interface {
+	AddMetrics(ctx context.Context, metrics *api.MetricsList) error
+}
 
 // MetricsServer поддерживает все необходимые методы сервера.
 type MetricsServer struct {
