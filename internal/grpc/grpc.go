@@ -15,8 +15,8 @@ type Storage interface {
 	AddMetrics(ctx context.Context, metrics *api.MetricsList) error
 }
 
-// MetricsServer поддерживает все необходимые методы сервера.
-type MetricsServer struct {
+// MetricsHandler поддерживает все необходимые методы сервера.
+type MetricsHandler struct {
 	// нужно встраивать тип pb.Unimplemented<TypeName>
 	// для совместимости с будущими версиями
 	pb.UnimplementedMetricsServiceServer
@@ -24,17 +24,22 @@ type MetricsServer struct {
 }
 
 // AddUser реализует интерфейс добавления пользователя.
-func (srv *MetricsServer) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Response, error) {
+func (srv *MetricsHandler) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Response, error) {
 	metrics := mcv.ConvMetricsInverse(in)
 	var response pb.Response
 
 	if err := srv.store.AddMetrics(ctx, metrics); err != nil {
 		return nil, err
 	}
+	response.Success = true
 
 	return &response, nil
 }
 
-func registerGrpcService(grpcS *grpc.Server, store Storage) {
-	pb.RegisterMetricsServiceServer(grpcS, &MetricsServer{store: store})
+func NewGrpcServer() *grpc.Server {
+	return grpc.NewServer()
+}
+
+func SetupServer(grpcS *grpc.Server, store Storage) {
+	pb.RegisterMetricsServiceServer(grpcS, &MetricsHandler{store: store})
 }

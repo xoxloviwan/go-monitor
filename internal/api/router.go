@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +19,7 @@ import (
 
 	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
+	grpcServ "github.com/xoxloviwan/go-monitor/internal/grpc"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -104,6 +105,13 @@ func RunServer(r Router, cfg config.Config) error {
 	// Настраиваем маршруты.
 	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey, cfg.TrustedSubnet)
 
+	grpcL, err := net.Listen("tcp", ":2323")
+	if err != nil {
+		return fmt.Errorf("grpc listener error: %w", err)
+	}
+	slog.Info("Start listening gRPC on", "addr", grpcL.Addr())
+	grpcS := grpcServ.NewGrpcServer()
+
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -116,6 +124,7 @@ func RunServer(r Router, cfg config.Config) error {
 		signal.Stop(quit)
 		close(quit) // Остановим периодическое сохранение данных в файл.
 		// Завершаем работу сервера.
+		grpcS.GracefulStop()
 		return r.Shutdown()
 	})
 
@@ -143,9 +152,15 @@ func RunServer(r Router, cfg config.Config) error {
 		})
 	}
 
-	// Запускаем сервер
+	grpcServ.SetupServer(grpcS, s)
+
+	eg.Go(func() error {
+		return grpcS.Serve(grpcL)
+	})
+
+	// Запускаем сервер http
 	if err := r.Run(cfg.Address); err != nil {
-		if !errors.Is(err, http.ErrServerClosed) && !strings.Contains(err.Error(), "use of closed network connection") {
+		if !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("run server error: %w", err)
 		}
 	}
