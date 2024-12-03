@@ -23,7 +23,7 @@ type MetricsHandler struct {
 	store Storage
 }
 
-// AddUser реализует интерфейс добавления пользователя.
+// AddMetrics
 func (srv *MetricsHandler) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.Response, error) {
 	metrics := mcv.ConvMetricsInverse(in)
 	var response pb.Response
