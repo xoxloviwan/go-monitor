@@ -89,7 +89,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if cfg.Restore && cfg.FileStoragePath != "" {
 		if b, ok := s.(FileBackuper); ok {
 			if err := b.RestoreFromFile(cfg.FileStoragePath); err != nil {
-				slog.Error("restore data error", "path", cfg.FileStoragePath, "error", err) // fix autotests for iter9 if file not exist
+				Log.Error("restore data error", "path", cfg.FileStoragePath, "error", err) // fix autotests for iter9 if file not exist
 			}
 		}
 	}
@@ -103,14 +103,14 @@ func RunServer(r Router, cfg config.Config) error {
 	}
 
 	// Настраиваем маршруты.
-	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey, cfg.TrustedSubnet)
+	r.SetupRouter(pingHandler, s, slog.LevelInfo, []byte(cfg.Key), pKey, cfg.TrustedSubnet)
 
 	grpcL, err := net.Listen("tcp", ":2323")
 	if err != nil {
 		return fmt.Errorf("grpc listener error: %w", err)
 	}
-	slog.Info("Start listening gRPC on", "addr", grpcL.Addr())
-	grpcS := grpcServ.NewGrpcServer()
+	Log.Info("Start listening gRPC on", "addr", grpcL.Addr())
+	grpcS := grpcServ.NewGrpcServer(Log)
 
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
@@ -120,7 +120,7 @@ func RunServer(r Router, cfg config.Config) error {
 	eg.Go(func() error {
 		// Ждем сигнала завершения.
 		<-quit
-		slog.Info("Shutdown Server...")
+		Log.Info("Shutdown Server...")
 		signal.Stop(quit)
 		close(quit) // Остановим периодическое сохранение данных в файл.
 		// Завершаем работу сервера.
@@ -145,7 +145,7 @@ func RunServer(r Router, cfg config.Config) error {
 						return fmt.Errorf("backup ticker data error: %w", err)
 					}
 				case <-quit:
-					slog.Info("Shutdown backup ticker...")
+					Log.Info("Shutdown backup ticker...")
 					return nil
 				}
 			}
@@ -176,7 +176,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("goroutines error: %w", err)
 	}
-	slog.Info("Service stopped")
+	Log.Info("Service stopped")
 	return nil
 }
 

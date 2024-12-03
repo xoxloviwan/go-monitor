@@ -37,10 +37,10 @@ var reqID = 0
 func init() {
 
 	lvl = new(slog.LevelVar)
-	lvl.Set(slog.LevelDebug)
+	lvl.Set(slog.LevelInfo)
 	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 	slog.SetDefault(Log)
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetLogLoggerLevel(slog.LevelInfo)
 }
 
 func logger(lev slog.Level) gin.HandlerFunc {

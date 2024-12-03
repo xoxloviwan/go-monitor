@@ -260,28 +260,10 @@ func getIP() (net.IP, error) {
 	return localAddr.IP, nil
 }
 
-// TODO: добавить логирование
-// func unaryGrpcHeader(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-// 	start := time.Now()
-// 	slog.Info("gRPC Interceptor", "method", method)
-
-// 	// вызываем RPC-метод
-// 	err := invoker(ctx, method, req, reply, cc, opts...)
-
-// 	// выполняем действия после вызова метода
-// 	if err != nil {
-// 		slog.Error("gRPC Interceptor got error", "method", method, "error", err)
-// 	} else {
-// 		slog.Info("gRPC Interceptor", "method", method, "duration", time.Since(start))
-// 	}
-// 	return err
-// }
-
 func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
 	slog.Info("gRPC worker got task", "worker", worker)
 	// устанавливаем соединение с сервером
 	conn, err := grpc.NewClient(adr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	// grpc.WithUnaryInterceptor(unaryGrpcHeader))
 
 	if err != nil {
 		return err
