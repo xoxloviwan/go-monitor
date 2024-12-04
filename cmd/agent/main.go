@@ -271,7 +271,6 @@ func sendGRPC(worker int, adr string, msgs api.MetricsList, key string, localIP 
 		return err
 	}
 	defer conn.Close()
-	ctx := context.Background()
 	// получаем переменную интерфейсного типа MetricsServiceClient,
 	// через которую будем отправлять сообщения
 	c := pb.NewMetricsServiceClient(conn)
@@ -287,7 +286,7 @@ func sendGRPC(worker int, adr string, msgs api.MetricsList, key string, localIP 
 		}
 		md.Set("HashSHA256", sign)
 	}
-	ctx = metadata.NewOutgoingContext(context.Background(), md)
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
 	MetricsResponse, err := c.AddMetrics(ctx, metrs, grpc.UseCompressor(grpcGzip.Name))
 	if err != nil {
 		return err
