@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpcGzip "google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -229,7 +230,7 @@ func main() {
 						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
 						var err error
 						if cfg.GRPC {
-							err = sendGRPC(worker, cfg.Address, subbatch)
+							err = sendGRPC(worker, cfg.Address, subbatch, cfg.Key, localIP.String())
 						} else {
 							err = send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
 						}
@@ -261,7 +262,7 @@ func getIP() (net.IP, error) {
 	return localAddr.IP, nil
 }
 
-func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
+func sendGRPC(worker int, adr string, msgs api.MetricsList, key string, localIP string) error {
 	slog.Info("gRPC worker got task", "worker", worker)
 	// устанавливаем соединение с сервером
 	conn, err := grpc.NewClient(adr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -270,11 +271,23 @@ func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
 		return err
 	}
 	defer conn.Close()
+	ctx := context.Background()
 	// получаем переменную интерфейсного типа MetricsServiceClient,
 	// через которую будем отправлять сообщения
 	c := pb.NewMetricsServiceClient(conn)
 	metrs := mcv.ConvMetrics(msgs)
-	MetricsResponse, err := c.AddMetrics(context.Background(), metrs, grpc.UseCompressor(grpcGzip.Name))
+	if key != "" {
+		msg := metrs.String()
+		sign, err := getHash([]byte(msg), key)
+		if err != nil {
+			return err
+		}
+		md := metadata.New(map[string]string{
+			"HashSHA256": sign,
+		})
+		ctx = metadata.NewOutgoingContext(context.Background(), md)
+	}
+	MetricsResponse, err := c.AddMetrics(ctx, metrs, grpc.UseCompressor(grpcGzip.Name))
 	if err != nil {
 		return err
 	}

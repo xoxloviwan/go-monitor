@@ -110,7 +110,7 @@ func RunServer(r Router, cfg config.Config) error {
 		return fmt.Errorf("grpc listener error: %w", err)
 	}
 	Log.Info("Start listening gRPC on", "addr", grpcL.Addr())
-	grpcS := grpcServ.NewGrpcServer(Log)
+	grpcS := grpcServ.NewGrpcServer(Log, []byte(cfg.Key), cfg.TrustedSubnet)
 
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
