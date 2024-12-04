@@ -30,6 +30,7 @@ import (
 	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpcGzip "google.golang.org/grpc/encoding/gzip"
 )
 
 var (
@@ -273,7 +274,7 @@ func sendGRPC(worker int, adr string, msgs api.MetricsList) error {
 	// через которую будем отправлять сообщения
 	c := pb.NewMetricsServiceClient(conn)
 	metrs := mcv.ConvMetrics(msgs)
-	MetricsResponse, err := c.AddMetrics(context.Background(), metrs)
+	MetricsResponse, err := c.AddMetrics(context.Background(), metrs, grpc.UseCompressor(grpcGzip.Name))
 	if err != nil {
 		return err
 	}

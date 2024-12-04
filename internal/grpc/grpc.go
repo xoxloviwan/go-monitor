@@ -9,6 +9,7 @@ import (
 	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
 
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 )
 
 type Storage interface {
