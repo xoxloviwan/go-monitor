@@ -5,8 +5,10 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -35,10 +37,10 @@ var reqID = 0
 func init() {
 
 	lvl = new(slog.LevelVar)
-	lvl.Set(slog.LevelDebug)
+	lvl.Set(slog.LevelInfo)
 	Log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
 	slog.SetDefault(Log)
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetLogLoggerLevel(slog.LevelInfo)
 }
 
 func logger(lev slog.Level) gin.HandlerFunc {
@@ -260,6 +262,18 @@ func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
 			return
 		}
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBody))
+		ctx.Next()
+	}
+}
+
+func checkIP(subnet *net.IPNet) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ip := net.ParseIP(ctx.ClientIP())
+		if !subnet.Contains(ip) {
+			ctx.AbortWithError(http.StatusForbidden, fmt.Errorf("ip %s not allowed", ip))
+			return
+		}
+
 		ctx.Next()
 	}
 }

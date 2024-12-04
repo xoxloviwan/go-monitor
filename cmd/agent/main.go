@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,6 +25,13 @@ import (
 	conf "github.com/xoxloviwan/go-monitor/internal/config_agent"
 	metrs "github.com/xoxloviwan/go-monitor/internal/metrics"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
+
+	mcv "github.com/xoxloviwan/go-monitor/internal/metrics_convert"
+	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	grpcGzip "google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -38,7 +47,7 @@ var (
 // msgs - список метрик
 // key - ключ подписи
 // publicKey - RSA публичный ключ для шифрования сообщения
-func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey *asc.PublicKey) (err error) {
+func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey *asc.PublicKey, localIP string) (err error) {
 	cl := &http.Client{}
 
 	url := "http://" + adr + "/updates/"
@@ -48,7 +57,6 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	if err != nil {
 		return err
 	}
-	slog.Info("got", "worker", workerID, "body", body)
 	var sessionKey []byte
 	if publicKey != nil {
 		var err error
@@ -74,10 +82,14 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	if err != nil {
 		return err
 	}
+	// net.IPAddr
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	if localIP != "" {
+		req.Header.Set("X-Real-IP", localIP)
+	}
 	if sessionKey != nil {
 		req.Header.Set("X-Key", hex.EncodeToString(sessionKey))
 	}
@@ -89,6 +101,9 @@ func send(workerID int, adr string, msgs api.MetricsList, key string, publicKey 
 	var response *http.Response
 	retry := 0
 	response, err = cl.Do(req)
+	if err == nil && response.StatusCode != http.StatusOK {
+		slog.Warn("Unexpected status code", "worker", workerID, "status_code", response.StatusCode)
+	}
 	for err != nil && retry < 3 {
 		if response != nil {
 			response.Body.Close()
@@ -181,6 +196,7 @@ func main() {
 			publicKey = nil
 		}
 	}
+	localIP, _ := getIP()
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	defer pollTicker.Stop()
 	sendTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
@@ -212,7 +228,12 @@ func main() {
 					}
 					if len(subbatch) > 0 {
 						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
-						err := send(worker, cfg.Address, subbatch, cfg.Key, publicKey)
+						var err error
+						if cfg.GRPC != "" {
+							err = sendGRPC(worker, cfg.GRPC, subbatch, cfg.Key, localIP.String())
+						} else {
+							err = send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
+						}
 						if err != nil {
 							slog.Error("Send error", "worker", worker, "error", err)
 						}
@@ -227,4 +248,49 @@ func main() {
 			return
 		}
 	}
+}
+
+func getIP() (net.IP, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return []byte{}, err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP, nil
+}
+
+func sendGRPC(worker int, adr string, msgs api.MetricsList, key string, localIP string) error {
+	slog.Info("gRPC worker got task", "worker", worker)
+	// устанавливаем соединение с сервером
+	conn, err := grpc.NewClient(adr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	// получаем переменную интерфейсного типа MetricsServiceClient,
+	// через которую будем отправлять сообщения
+	c := pb.NewMetricsServiceClient(conn)
+	md := metadata.New(map[string]string{
+		"X-Real-IP": localIP,
+	})
+	metrs := mcv.ConvMetrics(msgs)
+	if key != "" {
+		msg := metrs.String()
+		sign, err := getHash([]byte(msg), key)
+		if err != nil {
+			return err
+		}
+		md.Set("HashSHA256", sign)
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	MetricsResponse, err := c.AddMetrics(ctx, metrs, grpc.UseCompressor(grpcGzip.Name))
+	if err != nil {
+		return err
+	}
+	slog.Info("gRPC worker got response", "worker", worker, "response", MetricsResponse)
+	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,21 +19,20 @@ import (
 
 	asc "github.com/xoxloviwan/go-monitor/internal/asymcrypto"
 	config "github.com/xoxloviwan/go-monitor/internal/config_server"
+	grpcServ "github.com/xoxloviwan/go-monitor/internal/grpc"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // Backuper is an interface for backing up data.
 //
-// It provides a method for saving the data to a file.
+// It provides methods for backing up data and restoring data from a file.
 type FileBackuper interface {
 	SaveToFile(path string) error
 	RestoreFromFile(path string) error
 }
 
-// Storage is an interface that combines Backuper and DBStorage.
-//
-// It provides methods for backing up data and restoring data from a file.
+// Storage is alias for ReaderWriter.
 type Storage interface {
 	ReaderWriter
 }
@@ -41,7 +41,7 @@ type Storage interface {
 
 // Router interface for API server.
 type Router interface {
-	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey)
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet *net.IPNet)
 	Run(addr string) error
 	Shutdown() error
 }
@@ -89,21 +89,36 @@ func RunServer(r Router, cfg config.Config) error {
 	if cfg.Restore && cfg.FileStoragePath != "" {
 		if b, ok := s.(FileBackuper); ok {
 			if err := b.RestoreFromFile(cfg.FileStoragePath); err != nil {
-				slog.Error("restore data error", "path", cfg.FileStoragePath, "error", err) // fix autotests for iter9 if file not exist
+				Log.Error("restore data error", "path", cfg.FileStoragePath, "error", err) // fix autotests for iter9 if file not exist
 			}
 		}
 	}
 
+	var err error
 	var pKey *asc.PrivateKey
 	if cfg.CryptoKey != "" {
-		var err error
 		if pKey, err = asc.GetPrivateKey(cfg.CryptoKey); err != nil {
 			return fmt.Errorf("get private key error: %w", err)
 		}
 	}
 
+	var subnet *net.IPNet
+	if cfg.TrustedSubnet != "" {
+		_, subnet, err = net.ParseCIDR(cfg.TrustedSubnet)
+	}
+	if err != nil {
+		return fmt.Errorf("parse subnet error: %w", err)
+	}
+
 	// Настраиваем маршруты.
-	r.SetupRouter(pingHandler, s, slog.LevelDebug, []byte(cfg.Key), pKey)
+	r.SetupRouter(pingHandler, s, slog.LevelInfo, []byte(cfg.Key), pKey, subnet)
+
+	grpcL, err := net.Listen("tcp", ":2323")
+	if err != nil {
+		return fmt.Errorf("grpc listener error: %w", err)
+	}
+	Log.Info("Start listening gRPC on", "addr", grpcL.Addr())
+	grpcS := grpcServ.NewGrpcServer(Log, []byte(cfg.Key), subnet)
 
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
@@ -113,10 +128,11 @@ func RunServer(r Router, cfg config.Config) error {
 	eg.Go(func() error {
 		// Ждем сигнала завершения.
 		<-quit
-		slog.Info("Shutdown Server...")
+		Log.Info("Shutdown Server...")
 		signal.Stop(quit)
 		close(quit) // Остановим периодическое сохранение данных в файл.
 		// Завершаем работу сервера.
+		grpcS.GracefulStop()
 		return r.Shutdown()
 	})
 
@@ -137,14 +153,20 @@ func RunServer(r Router, cfg config.Config) error {
 						return fmt.Errorf("backup ticker data error: %w", err)
 					}
 				case <-quit:
-					slog.Info("Shutdown backup ticker...")
+					Log.Info("Shutdown backup ticker...")
 					return nil
 				}
 			}
 		})
 	}
 
-	// Запускаем сервер
+	grpcServ.SetupServer(grpcS, s)
+
+	eg.Go(func() error {
+		return grpcS.Serve(grpcL)
+	})
+
+	// Запускаем сервер http
 	if err := r.Run(cfg.Address); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("run server error: %w", err)
@@ -162,7 +184,7 @@ func RunServer(r Router, cfg config.Config) error {
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("goroutines error: %w", err)
 	}
-	slog.Info("Service stopped")
+	Log.Info("Service stopped")
 	return nil
 }
 
@@ -180,10 +202,13 @@ func NewRouter() *RouterImpl {
 // SetupRouter sets up routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
-func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey) {
+func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet *net.IPNet) {
 	handler := newHandler(dbstore)
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
+	if subnet != nil {
+		r.Use(checkIP(subnet))
+	}
 	if len(key) > 0 {
 		r.Use(verifyHash(key))
 	}

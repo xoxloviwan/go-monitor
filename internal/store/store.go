@@ -14,10 +14,10 @@ import (
 //go:generate easyjson -output_filename store_easyjson_generated.go -all store.go
 
 // CounterName is a constant representing the counter metric type.
-const CounterName = "counter"
+const CounterName = mtr.CounterName
 
 // GaugeName is a constant representing the gauge metric type.
-const GaugeName = "gauge"
+const GaugeName = mtr.GaugeName
 
 // Gauge is a map of gauge metrics.
 //
