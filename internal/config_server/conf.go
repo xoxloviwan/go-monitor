@@ -105,6 +105,7 @@ func InitConfig() Config {
 		DatabaseDSN:     *databaseDSN,
 		Key:             *key,
 		CryptoKey:       *cryptoKey,
+		TrustedSubnet:   *trustedSubnet,
 	})
 	redefineConf(&cfgDefaults, cfg.Config)
 	log.Print(cfgDefaults)
