@@ -58,7 +58,7 @@ func setup(t *testing.T) (*RouterImpl, *mock.MockReaderWriter) {
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
 	r := NewRouter()
-	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, "")
+	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, nil)
 	return r, m
 }
 
