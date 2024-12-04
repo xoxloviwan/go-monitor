@@ -229,8 +229,8 @@ func main() {
 					if len(subbatch) > 0 {
 						slog.Info("Worker got task", "worker", worker, "subbatch", subbatch)
 						var err error
-						if cfg.GRPC {
-							err = sendGRPC(worker, cfg.Address, subbatch, cfg.Key, localIP.String())
+						if cfg.GRPC != "" {
+							err = sendGRPC(worker, cfg.GRPC, subbatch, cfg.Key, localIP.String())
 						} else {
 							err = send(worker, cfg.Address, subbatch, cfg.Key, publicKey, localIP.String())
 						}
