@@ -266,13 +266,8 @@ func decryptBody(privateKey *rsa.PrivateKey) gin.HandlerFunc {
 	}
 }
 
-func checkIP(snet string) gin.HandlerFunc {
-	_, subnet, err := net.ParseCIDR(snet)
+func checkIP(subnet *net.IPNet) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if err != nil {
-			ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
 		ip := net.ParseIP(ctx.ClientIP())
 		if !subnet.Contains(ip) {
 			ctx.AbortWithError(http.StatusForbidden, fmt.Errorf("ip %s not allowed", ip))

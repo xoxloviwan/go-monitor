@@ -41,7 +41,7 @@ type Storage interface {
 
 // Router interface for API server.
 type Router interface {
-	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet string)
+	SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet *net.IPNet)
 	Run(addr string) error
 	Shutdown() error
 }
@@ -94,23 +94,31 @@ func RunServer(r Router, cfg config.Config) error {
 		}
 	}
 
+	var err error
 	var pKey *asc.PrivateKey
 	if cfg.CryptoKey != "" {
-		var err error
 		if pKey, err = asc.GetPrivateKey(cfg.CryptoKey); err != nil {
 			return fmt.Errorf("get private key error: %w", err)
 		}
 	}
 
+	var subnet *net.IPNet
+	if cfg.TrustedSubnet != "" {
+		_, subnet, err = net.ParseCIDR(cfg.TrustedSubnet)
+	}
+	if err != nil {
+		return fmt.Errorf("parse subnet error: %w", err)
+	}
+
 	// Настраиваем маршруты.
-	r.SetupRouter(pingHandler, s, slog.LevelInfo, []byte(cfg.Key), pKey, cfg.TrustedSubnet)
+	r.SetupRouter(pingHandler, s, slog.LevelInfo, []byte(cfg.Key), pKey, subnet)
 
 	grpcL, err := net.Listen("tcp", ":2323")
 	if err != nil {
 		return fmt.Errorf("grpc listener error: %w", err)
 	}
 	Log.Info("Start listening gRPC on", "addr", grpcL.Addr())
-	grpcS := grpcServ.NewGrpcServer(Log, []byte(cfg.Key), cfg.TrustedSubnet)
+	grpcS := grpcServ.NewGrpcServer(Log, []byte(cfg.Key), subnet)
 
 	// Создаем канал для сигналов завершения.
 	quit := make(chan os.Signal, 1)
@@ -194,11 +202,11 @@ func NewRouter() *RouterImpl {
 // SetupRouter sets up routes and middleware.
 //
 // The engine is initialized with the given ping handler, store, log level, and key.
-func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet string) {
+func (r *RouterImpl) SetupRouter(ping gin.HandlerFunc, dbstore ReaderWriter, logLevel slog.Level, key []byte, privateKey *asc.PrivateKey, subnet *net.IPNet) {
 	handler := newHandler(dbstore)
 	r.Use(compressGzip())
 	r.Use(logger(logLevel))
-	if subnet != "" {
+	if subnet != nil {
 		r.Use(checkIP(subnet))
 	}
 	if len(key) > 0 {

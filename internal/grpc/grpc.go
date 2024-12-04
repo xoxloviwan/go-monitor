@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"net"
 
 	mcv "github.com/xoxloviwan/go-monitor/internal/metrics_convert"
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
@@ -79,6 +80,27 @@ func decryptInterceptor(privateKey *asc.PrivateKey) grpc.UnaryServerInterceptor 
 }
 */
 
+func subnetInterceptor(subnet *net.IPNet) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if subnet == nil {
+			return handler(ctx, req)
+		}
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, status.Errorf(codes.Unauthenticated, "no metadata")
+		}
+		ipHeader := md.Get("X-Real-IP")
+		if len(ipHeader) == 0 {
+			return nil, status.Errorf(codes.Unauthenticated, "no ip")
+		}
+		ip := net.ParseIP(ipHeader[0])
+		if !subnet.Contains(ip) {
+			return nil, status.Errorf(codes.Unauthenticated, "not trusted ip")
+		}
+		return handler(ctx, req)
+	}
+}
+
 func verifyHashInterceptor(key []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if len(key) == 0 {
@@ -126,11 +148,12 @@ func (srv *MetricsHandler) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.
 	return &response, nil
 }
 
-func NewGrpcServer(log logger, key []byte, subnet string) *grpc.Server {
+func NewGrpcServer(log logger, key []byte, subnet *net.IPNet) *grpc.Server {
 
 	return grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc.UnaryServerInterceptor(logInterceptor(log)),
+			grpc.UnaryServerInterceptor(subnetInterceptor(subnet)),
 			grpc.UnaryServerInterceptor(verifyHashInterceptor(key)),
 		),
 	)
