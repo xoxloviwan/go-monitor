@@ -52,34 +52,6 @@ func logInterceptor(log logger) grpc.UnaryServerInterceptor {
 	}
 }
 
-/*
-func decryptInterceptor(privateKey *asc.PrivateKey) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		if privateKey == nil {
-			return handler(ctx, req)
-		}
-		body, ok := req.([]byte)
-		if !ok {
-			return nil, errors.New("not bytes")
-		}
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return nil, errors.New("no metadata")
-		}
-		key := md.Get("X-Key")[0]
-		encryptedSessionKey, err := hex.DecodeString(key)
-		if err != nil {
-			return nil, err
-		}
-		decrypted, err := asc.Decrypt(privateKey, encryptedSessionKey, body)
-		if err != nil {
-			return nil, err
-		}
-		return handler(ctx, decrypted)
-	}
-}
-*/
-
 func subnetInterceptor(subnet *net.IPNet) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if subnet == nil {
