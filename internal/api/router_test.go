@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,9 +47,10 @@ type testcasesWithBody []struct {
 	HashSHA256         string
 	lastCounterValue   int64
 	lastGaugeValue     float64
+	ipReq              string
 }
 
-func setup(t *testing.T) (*RouterImpl, *mock.MockReaderWriter) {
+func setup(t *testing.T, subnet bool) (*RouterImpl, *mock.MockReaderWriter) {
 	ping := func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	}
@@ -58,7 +60,11 @@ func setup(t *testing.T) (*RouterImpl, *mock.MockReaderWriter) {
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
 	r := NewRouter()
-	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, nil)
+	var netIp *net.IPNet
+	if subnet {
+		_, netIp, _ = net.ParseCIDR("192.168.1.0/26")
+	}
+	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, netIp)
 	return r, m
 }
 
@@ -148,7 +154,7 @@ func Test_update_value(t *testing.T) {
 			},
 		},
 	}
-	router, m := setup(t)
+	router, m := setup(t, false)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.url, nil)
@@ -189,7 +195,7 @@ func Test_list(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	router, m := setup(t)
+	router, m := setup(t, false)
 	m.EXPECT().String().Return("some string")
 	router.ServeHTTP(w, req)
 
@@ -218,6 +224,7 @@ func Test_updateJSON(t *testing.T) {
 			wantBody:         `{"id": "someMetric", "type": "gauge", "value": 23.4}`,
 			lastCounterValue: 0,
 			lastGaugeValue:   23.4,
+			ipReq:            "192.168.1.12",
 		},
 		{
 			testcase: testcase{
@@ -233,6 +240,7 @@ func Test_updateJSON(t *testing.T) {
 			wantBody:         `{"id": "someMetric", "type": "counter", "delta": 23}`,
 			lastCounterValue: 0,
 			lastGaugeValue:   0,
+			ipReq:            "192.168.1.12",
 		},
 		{
 			testcase: testcase{
@@ -248,6 +256,7 @@ func Test_updateJSON(t *testing.T) {
 			wantBody:         `{"id": "someMetric", "type": "counter", "delta": 43}`, // сохранилось значение от теста service_post_update_counter_json_200
 			lastCounterValue: 23,
 			lastGaugeValue:   0,
+			ipReq:            "192.168.1.12",
 		},
 		{
 			testcase: testcase{
@@ -259,10 +268,24 @@ func Test_updateJSON(t *testing.T) {
 				},
 			},
 			reqBody: `"id": "someMetric", "type": "gauge", "value": 23.4`,
+			ipReq:   "192.168.1.12",
+		},
+		{
+			testcase: testcase{
+				name:   "service_post_update_counter_bad_ip_403",
+				url:    "/update/",
+				method: http.MethodPost,
+				want: want{
+					code: http.StatusForbidden,
+				},
+			},
+			reqBody:  `{"id": "someMetric", "type": "counter", "delta": 23}`,
+			wantBody: "",
+			ipReq:    "192.168.1.128",
 		},
 	}
 
-	router, m := setup(t)
+	router, m := setup(t, true)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -279,6 +302,9 @@ func Test_updateJSON(t *testing.T) {
 			err = gotInput.UnmarshalJSON([]byte(tt.reqBody))
 			if err != nil {
 				req.Header.Set("Content-Type", "plain/text")
+			}
+			if tt.ipReq != "" {
+				req.Header.Set("X-Real-IP", tt.ipReq)
 			}
 
 			gotInputList := &mt.MetricsList{gotInput}
@@ -408,7 +434,7 @@ func Test_valueJSON(t *testing.T) {
 		},
 	}
 
-	router, m := setup(t)
+	router, m := setup(t, false)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -545,7 +571,7 @@ func Test_updatesJSON(t *testing.T) {
 				"Content-Type": {"application/json"},
 			}
 
-			router, m := setup(t)
+			router, m := setup(t, false)
 
 			gotInputList := mt.MetricsList{}
 			if err = gotInputList.UnmarshalJSON([]byte(tt.reqBody)); err != nil {
