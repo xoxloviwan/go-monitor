@@ -2,6 +2,7 @@ package grpcservice_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"log"
 	"log/slog"
 	"net"
@@ -10,11 +11,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	mock "github.com/xoxloviwan/go-monitor/internal/api/mock"
+	grpcclient "github.com/xoxloviwan/go-monitor/internal/clients/grpc"
 	grpcservice "github.com/xoxloviwan/go-monitor/internal/grpc"
-	pb "github.com/xoxloviwan/go-monitor/internal/metrics_types/proto"
+	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -22,12 +23,16 @@ const bufSize = 1024 * 1024
 
 var lis *bufconn.Listener
 
-func setup(t *testing.T) *mock.MockReaderWriter {
+func setup(t *testing.T) (*mock.MockReaderWriter, []byte) {
 	lis = bufconn.Listen(bufSize)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
-	s := grpcservice.NewGrpcServer(logger, nil, nil)
+	h := sha256.New()
+	h.Write([]byte("secret"))
+	key := h.Sum(nil)
+	_, netIp, _ := net.ParseCIDR("192.168.1.0/26")
+	s := grpcservice.NewGrpcServer(logger, key, netIp)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -38,7 +43,7 @@ func setup(t *testing.T) *mock.MockReaderWriter {
 			log.Fatalf("Server exited with error: %v", err)
 		}
 	}()
-	return m
+	return m, key
 }
 
 func bufDialer(context.Context, string) (net.Conn, error) {
@@ -46,29 +51,22 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 }
 
 func TestAddMetrics(t *testing.T) {
-	m := setup(t)
-	ctx := context.Background()
-	conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
+	m, key := setup(t)
+	cl := grpcclient.Client{
+		Addr:    "passthrough://bufnet",
+		LocalIP: "192.168.1.12",
+		Key:     string(key),
 	}
-	defer conn.Close()
-	client := pb.NewMetricsServiceClient(conn)
-
-	metricItem := &pb.Metric{
-		Id:    "test",
-		Type:  "gauge",
-		Value: 1.34,
-		Delta: 0,
+	metricItem := api.Metrics{
+		ID:    "test",
+		MType: "gauge",
 	}
-	msg := &pb.Metrics{
-		Metrics: []*pb.Metric{metricItem},
-	}
+	var val float64 = 1.34
+	metricItem.Value = &val
+	msg := api.MetricsList{metricItem}
 	m.EXPECT().AddMetrics(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-
-	resp, err := client.AddMetrics(ctx, msg)
+	err := cl.SendWithOpts(1, msg, grpc.WithContextDialer(bufDialer))
 	if err != nil {
 		t.Fatalf("AddMetrics failed: %v", err)
 	}
-	log.Printf("Response: %+v", resp)
 }

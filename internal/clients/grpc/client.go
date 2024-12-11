@@ -18,9 +18,15 @@ import (
 type Client base.Client
 
 func (s *Client) Send(worker int, msgs api.MetricsList) (err error) {
+	return s.SendWithOpts(worker, msgs)
+}
+
+func (s *Client) SendWithOpts(worker int, msgs api.MetricsList, opts ...grpc.DialOption) (err error) {
+
 	slog.Info("gRPC worker got task", "worker", worker)
 	// устанавливаем соединение с сервером
-	conn, err := grpc.NewClient(s.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(s.Addr, opts...)
 
 	if err != nil {
 		return err
