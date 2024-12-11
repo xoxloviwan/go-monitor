@@ -31,8 +31,8 @@ func setup(t *testing.T) (*mock.MockReaderWriter, []byte) {
 	h := sha256.New()
 	h.Write([]byte("secret"))
 	key := h.Sum(nil)
-	_, netIp, _ := net.ParseCIDR("192.168.1.0/26")
-	s := grpcservice.NewGrpcServer(logger, key, netIp)
+	_, netIP, _ := net.ParseCIDR("192.168.1.0/26")
+	s := grpcservice.NewGrpcServer(logger, key, netIP)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -61,7 +61,7 @@ func TestAddMetrics(t *testing.T) {
 		ID:    "test",
 		MType: "gauge",
 	}
-	var val float64 = 1.34
+	val := 1.34
 	metricItem.Value = &val
 	msg := api.MetricsList{metricItem}
 	m.EXPECT().AddMetrics(gomock.Any(), gomock.Any()).Return(nil).Times(1)

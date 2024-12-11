@@ -60,11 +60,11 @@ func setup(t *testing.T, subnet bool) (*RouterImpl, *mock.MockReaderWriter) {
 	m := mock.NewMockReaderWriter(ctrl)
 	gin.SetMode(gin.ReleaseMode)
 	r := NewRouter()
-	var netIp *net.IPNet
+	var netIP *net.IPNet
 	if subnet {
-		_, netIp, _ = net.ParseCIDR("192.168.1.0/26")
+		_, netIP, _ = net.ParseCIDR("192.168.1.0/26")
 	}
-	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, netIp)
+	r.SetupRouter(ping, m, slog.LevelError, []byte("test"), nil, netIP)
 	return r, m
 }
 
