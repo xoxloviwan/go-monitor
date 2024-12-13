@@ -12,3 +12,9 @@ type Metrics struct {
 
 //easyjson:json
 type MetricsList []Metrics
+
+// CounterName is a constant representing the counter metric type.
+const CounterName = "counter"
+
+// GaugeName is a constant representing the gauge metric type.
+const GaugeName = "gauge"

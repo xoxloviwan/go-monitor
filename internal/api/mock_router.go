@@ -7,6 +7,7 @@ package api
 import (
 	rsa "crypto/rsa"
 	slog "log/slog"
+	net "net"
 	reflect "reflect"
 
 	gin "github.com/gin-gonic/gin"
@@ -51,15 +52,15 @@ func (mr *MockRouterMockRecorder) Run(arg0 interface{}) *gomock.Call {
 }
 
 // SetupRouter mocks base method.
-func (m *MockRouter) SetupRouter(arg0 gin.HandlerFunc, arg1 ReaderWriter, arg2 slog.Level, arg3 []byte, arg4 *rsa.PrivateKey) {
+func (m *MockRouter) SetupRouter(arg0 gin.HandlerFunc, arg1 ReaderWriter, arg2 slog.Level, arg3 []byte, arg4 *rsa.PrivateKey, arg5 *net.IPNet) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetupRouter", arg0, arg1, arg2, arg3, arg4)
+	m.ctrl.Call(m, "SetupRouter", arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // SetupRouter indicates an expected call of SetupRouter.
-func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) SetupRouter(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRouter", reflect.TypeOf((*MockRouter)(nil).SetupRouter), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRouter", reflect.TypeOf((*MockRouter)(nil).SetupRouter), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // Shutdown mocks base method.

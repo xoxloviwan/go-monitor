@@ -1,7 +1,5 @@
 {
     "address": "localhost:7080",
-    "restore": true,
     "store_interval": "1s",
-    "store_file": "/path/to/file.db",
-    "database_dsn": ""
+    "trusted_subnet": "192.168.1.0/30"
 } 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -125,7 +124,6 @@ func (hdl *Handler) updateJSON(c *gin.Context) {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("%+v\n", mtrListWithValues)
 	c.Writer.Header().Set("Content-Type", "application/json")
 	if mtr.ID != "" {
 		mtrUpd := mtrTypes.Metrics{

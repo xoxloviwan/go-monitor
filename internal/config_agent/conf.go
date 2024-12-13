@@ -26,6 +26,7 @@ var (
 	cryptoKey      = flag.String("crypto-key", "", "path to file with public key for encrypting data")
 	rateLimit      = flag.Int("l", rateLimitDefault, "number of outgoing requests at once")
 	config         = flag.String("c", "", "path to config file")
+	grpc           = flag.String("grpc", "", "address of gRPC server")
 )
 
 // Config represents the configuration for the agent.
@@ -44,6 +45,8 @@ type Config struct {
 	CryptoKey string `envDefault:""`
 	// RateLimit is the number of outgoing requests at once.
 	RateLimit int `envDefault:"1"`
+	// GRPC is address for using gRPC transport
+	GRPC string `envDefault:""`
 }
 
 // FileConfig represents the json configuration in file
@@ -96,6 +99,7 @@ func InitConfig() Config {
 		RateLimit:      *rateLimit,
 		Key:            *key,
 		CryptoKey:      *cryptoKey,
+		GRPC:           *grpc,
 	})
 	redefineConf(&cfgDefaults, cfg.Config)
 	log.Print(cfgDefaults)
@@ -123,6 +127,9 @@ func redefineConf(cfg *Config, leadCfg Config) {
 	}
 	if cfg.RateLimit != leadCfg.RateLimit && leadCfg.RateLimit != rateLimitDefault {
 		cfg.RateLimit = leadCfg.RateLimit
+	}
+	if cfg.GRPC != leadCfg.GRPC && leadCfg.GRPC != "" {
+		cfg.GRPC = leadCfg.GRPC
 	}
 }
 
