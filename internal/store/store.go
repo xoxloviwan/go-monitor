@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/mailru/easyjson"
@@ -110,7 +111,14 @@ func (s *MemStorage) GetMetrics(ctx context.Context, m mtr.MetricsList) (mtr.Met
 
 	metrics := make(mtr.MetricsList, 0, len(m))
 
-	for id := range uniqID {
+	keys := make([]string, 0, len(uniqID))
+
+	for k := range uniqID {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, id := range keys {
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("context canceled during processing: %w", ctx.Err())
