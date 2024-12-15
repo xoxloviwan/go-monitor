@@ -16,6 +16,7 @@ import (
 	api "github.com/xoxloviwan/go-monitor/internal/metrics_types"
 )
 
+// Client is a wrapper around base.Client that provides HTTP-specific functionality.
 type Client base.Client
 
 // Send
