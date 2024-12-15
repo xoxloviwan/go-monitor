@@ -15,12 +15,19 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// Client is a gRPC client that sends metrics to a server.
+// It embeds the base.Client type, which provides common client functionality.
 type Client base.Client
 
+// Send sends a list of metrics to the gRPC server using the default options.
+// The worker parameter is used for logging purposes.
 func (s *Client) Send(worker int, msgs api.MetricsList) (err error) {
 	return s.SendWithOpts(worker, msgs)
 }
 
+// SendWithOpts sends a list of metrics to the gRPC server using the provided dial options.
+// The worker parameter is used for logging purposes.
+// The opts parameter allows for customizing the gRPC connection, such as setting transport credentials.
 func (s *Client) SendWithOpts(worker int, msgs api.MetricsList, opts ...grpc.DialOption) (err error) {
 
 	slog.Info("gRPC worker got task", "worker", worker)

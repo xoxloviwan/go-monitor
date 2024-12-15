@@ -19,6 +19,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Storage is an interface that defines the methods for storing metrics.
+// The AddMetrics method adds a list of metrics to the storage.
 type Storage interface {
 	AddMetrics(ctx context.Context, metrics *api.MetricsList) error
 }
@@ -120,6 +122,10 @@ func (srv *MetricsHandler) AddMetrics(ctx context.Context, in *pb.Metrics) (*pb.
 	return &response, nil
 }
 
+// NewGrpcServer creates a new gRPC server with the provided logger, key, and subnet interceptors.
+// The server will use the provided logger to log requests, the subnet interceptor to validate the
+// client's IP address is within the provided subnet, and the verifyHashInterceptor to validate
+// the HMAC signature of the request.
 func NewGrpcServer(log logger, key []byte, subnet *net.IPNet) *grpc.Server {
 
 	return grpc.NewServer(
@@ -131,6 +137,7 @@ func NewGrpcServer(log logger, key []byte, subnet *net.IPNet) *grpc.Server {
 	)
 }
 
+// SetupServer registers the MetricsServiceServer implementation with the provided gRPC server and associates it with the provided Storage instance.
 func SetupServer(grpcS *grpc.Server, store Storage) {
 	pb.RegisterMetricsServiceServer(grpcS, &MetricsHandler{store: store})
 }
