@@ -1,4 +1,5 @@
-# go-musthave-metrics-tpl
+# go-monitor
+![coverage](https://raw.githubusercontent.com/xoxloviwan/go-monitor/badges/.badges/main/coverage.svg)
 
 Шаблон репозитория для трека «Сервер сбора метрик и алертинга».
 
